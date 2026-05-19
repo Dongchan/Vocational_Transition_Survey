@@ -117,5 +117,41 @@
     "type": "reference",
     "year": 2021,
     "note": "범부처 인적자원개발 거버넌스와 국가교육 거버넌스의 메타 정책 영역 연속성"
+  },
+  {
+    "from": "1995_531교육개혁.md",
+    "from_kind": "event",
+    "to": "elementary_secondary_education_act",
+    "to_kind": "law",
+    "type": "basis",
+    "year": 1997,
+    "note": "5·31 교육개혁 권고로 1997-12-13 「교육법」 분할 입법(초·중등교육법 법률 제5438호)"
+  },
+  {
+    "from": "1995_531교육개혁.md",
+    "from_kind": "event",
+    "to": "higher_education_act",
+    "to_kind": "law",
+    "type": "basis",
+    "year": 1997,
+    "note": "5·31 교육개혁 권고로 1997-12-13 「교육법」 분할 입법(고등교육법 법률 제5439호)"
+  },
+  {
+    "from": "1995_531교육개혁.md",
+    "from_kind": "event",
+    "to": "qualifications_basic_act",
+    "to_kind": "law",
+    "type": "basis",
+    "year": 1997,
+    "note": "5·31 직업교육·자격 트랙 개혁 권고로 1997 자격기본법 제정"
+  },
+  {
+    "from": "1995_531교육개혁.md",
+    "from_kind": "event",
+    "to": "lifelong_education_act",
+    "to_kind": "law",
+    "type": "basis",
+    "year": 1999,
+    "note": "5·31 평생학습사회 구축 권고로 「사회교육법」 전면 개정 → 1999 평생교육법"
   }
 ]

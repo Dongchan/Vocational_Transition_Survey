@@ -143,7 +143,7 @@ function validateLaws(laws) {
  * @param {Set<string>} lawIdSet  laws 의 id 집합 (참조 무결성 확인용)
  * @returns {number} 검증 통과 항목 수
  */
-function validateRelations(relations, lawIdSet) {
+function validateRelations(relations, lawIdSet, eventIdSet) {
   let okCount = 0;
 
   relations.forEach((rel, idx) => {
@@ -167,12 +167,17 @@ function validateRelations(relations, lawIdSet) {
       return;
     }
 
-    if (!lawIdSet.has(rel.from)) {
-      console.error(`[data-loader] ${ref}: from "${rel.from}" 가 laws 에 없음`);
+    // from_kind/to_kind 기본값 "law" — 이벤트 ↔ 법령 엣지 지원
+    const fromKind = rel.from_kind || "law";
+    const toKind = rel.to_kind || "law";
+    const fromSet = fromKind === "law" ? lawIdSet : eventIdSet;
+    const toSet = toKind === "law" ? lawIdSet : eventIdSet;
+    if (!fromSet.has(rel.from)) {
+      console.error(`[data-loader] ${ref}: from "${rel.from}" (kind=${fromKind}) 미존재`);
       return;
     }
-    if (!lawIdSet.has(rel.to)) {
-      console.error(`[data-loader] ${ref}: to "${rel.to}" 가 laws 에 없음`);
+    if (!toSet.has(rel.to)) {
+      console.error(`[data-loader] ${ref}: to "${rel.to}" (kind=${toKind}) 미존재`);
       return;
     }
 
@@ -269,7 +274,8 @@ export async function loadAllData() {
 
   const lawsOk = validateLaws(laws);
   const lawIdSet = new Set(laws.filter((l) => l && l.id).map((l) => l.id));
-  const relationsOk = validateRelations(relations, lawIdSet);
+  const eventIdSet = new Set(events.filter((e) => e && e.file).map((e) => e.file));
+  const relationsOk = validateRelations(relations, lawIdSet, eventIdSet);
   const eventsOk = validateEvents(events, lawIdSet);
 
   // 요약 로그 (검증 실패 항목은 위에서 개별 console.error 로 이미 출력됨)

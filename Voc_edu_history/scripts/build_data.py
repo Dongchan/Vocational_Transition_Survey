@@ -374,6 +374,26 @@ LAW_REGISTRY = [
 
     # ━━ 진로교육 트랙 ━━
     {
+        "id": "vocational_competency_dev_institute_act",
+        "name_kr": "한국직업능력개발원법",
+        "aliases": ["KRIVET 설치법"],
+        "enacted": "1997-03-27",
+        "enacted_year": 1997,
+        "abolished": None,
+        "category": "진로교육",
+        "track_order": 19,
+        "mst": "",
+        "law_id": "",
+        "verified": False,
+        "milestones": [
+            {"date": "1997-03-27", "type": "enacted",
+             "label": "한국직업능력개발원법 제정", "law_number": "법률 제5315호"},
+            {"date": "2021-05-18", "type": "renamed",
+             "label": "한국직업능력연구원으로 명칭 변경(정부출연연구기관법 일부개정)"},
+        ],
+        "source_note": "WebSearch(2026-05-19): 법률 제5315호, 1997-03-27 제정. 국가법령정보센터 lsiSeq=2913. 2021-05-18 「정부출연연구기관 등의 설립·운영 및 육성에 관한 법률」 일부개정(법률 제18189호)으로 한국직업능력연구원 명칭 변경. 본 법률 자체 폐지 시점은 MCP 현행 DB 미확인 — 보수적으로 abolished=None 처리",
+    },
+    {
         "id": "career_education_act",
         "name_kr": "진로교육법",
         "aliases": [],
@@ -505,6 +525,27 @@ RELATIONS = [
     {"from": "hrd_basic_act", "to": "national_education_council_act",
      "type": "reference", "year": 2021,
      "note": "범부처 인적자원개발 거버넌스와 국가교육 거버넌스의 메타 정책 영역 연속성"},
+
+    # ━━ 정책 이벤트 ↔ 법령 (RELATIONS 모델 확장) ━━
+    # 5·31 교육개혁(1995) → 1997 교육법 분할·자격기본법·1999 평생교육법(전 사회교육법 전면 개정)
+    {"from": "1995_531교육개혁.md", "from_kind": "event",
+     "to": "elementary_secondary_education_act", "to_kind": "law",
+     "type": "basis", "year": 1997,
+     "note": "5·31 교육개혁 권고로 1997-12-13 「교육법」 분할 입법(초·중등교육법 법률 제5438호)"},
+    {"from": "1995_531교육개혁.md", "from_kind": "event",
+     "to": "higher_education_act", "to_kind": "law",
+     "type": "basis", "year": 1997,
+     "note": "5·31 교육개혁 권고로 1997-12-13 「교육법」 분할 입법(고등교육법 법률 제5439호)"},
+    {"from": "1995_531교육개혁.md", "from_kind": "event",
+     "to": "qualifications_basic_act", "to_kind": "law",
+     "type": "basis", "year": 1997,
+     "note": "5·31 직업교육·자격 트랙 개혁 권고로 1997 자격기본법 제정"},
+    {"from": "1995_531교육개혁.md", "from_kind": "event",
+     "to": "lifelong_education_act", "to_kind": "law",
+     "type": "basis", "year": 1999,
+     "note": "5·31 평생학습사회 구축 권고로 「사회교육법」 전면 개정 → 1999 평생교육법"},
+
+    # CareerNet(1999)·2005 산학협력중등직업교육은 이벤트 마커로만 표시 — 인입·인출 관계 엣지 없음
 ]
 
 
@@ -521,13 +562,16 @@ EVENT_LAW_MAP = {
                           "vocational_training_promotion_fund_act", "ktma_act"],
     "1977_전문대학체제출범.md": ["higher_education_act"],
     "1989_기능장려법.md": ["skill_promotion_act"],
-    "1995_531교육개혁.md": [],
+    # 5·31 정책방안이 「교육법」 분할(초·중등교육법·고등교육법), 자격기본법, 평생교육법(전 사회교육법) 입법으로 결실
+    "1995_531교육개혁.md": ["elementary_secondary_education_act", "higher_education_act", "qualifications_basic_act", "lifelong_education_act"],
     "1995_고용보험법.md": ["employment_insurance_act", "lifelong_vocational_skills_dev_act"],
     "1997_자격기본법.md": ["qualifications_basic_act"],
     "1998_국가기술자격체계정비.md": ["national_technical_qualifications_act"],
-    "1999_진로정보센터_CareerNet.md": [],
+    # 「한국직업능력개발원법」(1997, 법률 제5315호)으로 설치된 KRIVET이 1999년 CareerNet 개발 → 2015 「진로교육법」 §13으로 운영 법제화
+    "1999_진로정보센터_CareerNet.md": ["vocational_competency_dev_institute_act", "career_education_act"],
     "2002_인적자원개발기본법.md": ["hrd_basic_act"],
-    "2005_산학협력중등직업교육.md": [],
+    # 2003년 「산업교육진흥 및 산학협력촉진에 관한 법률」 개편 흐름의 정책 실행
+    "2005_산학협력중등직업교육.md": ["industrial_education_act"],
     "2006_한국폴리텍대학.md": ["lifelong_vocational_skills_dev_act"],
     "2007_전문대학학위경로.md": ["higher_education_act"],
     "2008_내일배움카드.md": ["lifelong_vocational_skills_dev_act"],
@@ -612,13 +656,22 @@ def validate() -> list:
     """데이터 정합성 검증. 경고 목록 반환(빈 리스트면 통과)."""
     warnings = []
     law_ids = {law["id"] for law in LAW_REGISTRY}
+    event_ids = set(EVENT_LAW_MAP.keys())
 
-    # 1. relations의 from/to가 law_ids에 존재하는가
+    # 1. relations의 from/to 검증 — from_kind/to_kind 기본값 "law"
     for r in RELATIONS:
-        if r["from"] not in law_ids:
-            warnings.append(f"RELATIONS: unknown from='{r['from']}'")
-        if r["to"] not in law_ids:
-            warnings.append(f"RELATIONS: unknown to='{r['to']}'")
+        from_kind = r.get("from_kind", "law")
+        to_kind = r.get("to_kind", "law")
+        valid_set_from = law_ids if from_kind == "law" else event_ids
+        valid_set_to = law_ids if to_kind == "law" else event_ids
+        if r["from"] not in valid_set_from:
+            warnings.append(f"RELATIONS: unknown from='{r['from']}' (kind={from_kind})")
+        if r["to"] not in valid_set_to:
+            warnings.append(f"RELATIONS: unknown to='{r['to']}' (kind={to_kind})")
+        if from_kind not in ("law", "event"):
+            warnings.append(f"RELATIONS: invalid from_kind='{from_kind}'")
+        if to_kind not in ("law", "event"):
+            warnings.append(f"RELATIONS: invalid to_kind='{to_kind}'")
 
     # 2. EVENT_LAW_MAP의 law_id가 law_ids에 존재하는가
     for fn, ids in EVENT_LAW_MAP.items():

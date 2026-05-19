@@ -7,8 +7,8 @@
 
 ### 현재 상태
 - **[설문 트랙] Phase 1·2 완료, Phase 3(사용자 검토) 대기** — 29개 Events MD `status: analyzed`. 1–5 척도 기준 점수·견해 초안 채움. 사용자가 검토 후 `status: reviewed`로 갱신 예정.
-- **[법령 시각화 트랙] Phase A·B·C·D 완료 + 후속 폴리시 진행 중** — 산출물: `Voc_edu_history/index.html`·`css/style.css`·`js/data-loader.js`·`js/app.js`. 데이터(2026-05-19 갱신): laws 19(13 verified+6 unverified, 1949 교육법 추가)·relations 17(succession 4·basis 8·reference 3·**branch 2**)·events 29(미연결 3: 5·31·CareerNet·2005 산학협력). 엣지 색·패턴 차별화, hit area 14px 확장, SVG 캔버스 1900x폭, 우측 패딩 100px 확보, 라벨 두 줄, 엣지 끝 화살표(markerWidth 14) 적용. **화살표 끝점은 마디 ● 정수리 2시(좌→우)·10시(우→좌) 방향 진입** (`computeArrowEndPoint`, α=60°, r=8, c2가 끝점 진입 방향 반대로 V만큼 떨어져 path 접선이 마디 표면 접선과 90°). 시간축 1945~2026. data-loader fetch + script import에 cache-bust query. 로컬 HTTP 서버 8080 가동 중.
-- **GitHub 공개 저장소 (2026-05-19)** — https://github.com/Dongchan/Vocational_Transition_Survey (브랜치 main, 첫 커밋 98aa6f8). GitHub Pages 배포는 미설정 — 차후 설정 필요.
+- **[법령 시각화 트랙] Phase A·B·C·D 완료 + 후속 폴리시 진행 중** — 산출물: `Voc_edu_history/index.html`·`css/style.css`·`js/data-loader.js`·`js/app.js`. 데이터(2026-05-20 갱신): laws 20(13 verified+7 unverified, 1949 교육법·한국직업능력개발원법 추가)·relations 21(succession 4·basis 12·reference 3·branch 2, **이벤트→법령 4건만 잔존(1995 5·31 분기)**)·events 29(**미연결 0**, CareerNet·2005 산학협력은 이벤트 마커만). **RELATIONS 모델 확장**: from_kind/to_kind 옵셔널 필드("law"|"event"), 이벤트 파일명을 from/to에 사용 가능. 엣지 색·패턴 차별화, hit area 14px 확장, SVG 캔버스 1900x폭, 우측 패딩 100px 확보, 라벨 두 줄, 엣지 끝 화살표(markerWidth 14) 적용. **화살표 끝점은 마디 ● 정수리 2시(좌→우)·10시(우→좌) 방향 진입** (`computeArrowEndPoint`, α=60°, r=8). 이벤트(★) 끝점은 위에서 수직 진입. 시간축 1945~2026, 우측 끝 2026 라벨 명시. 이벤트 식별자(.md) 표시 시점에 `stripMd()`로 절단. data-loader fetch + script import에 cache-bust query (`?v=20260520b`). 로컬 HTTP 서버 8080 가동 중.
+- **GitHub 공개 저장소** — https://github.com/Dongchan/Vocational_Transition_Survey (브랜치 main). 커밋: 98aa6f8(초기, 2026-05-19) · 3b67f91(화살표·1945·마이스터고, 2026-05-19). GitHub Pages 배포는 미설정.
 - **하네스 구성 완료 (2026-05-18 10:11)** — `harness:harness` 스킬로 `.claude/agents/{scaffold-engineer,viz-engineer,qa-validator}.md` + `.claude/skills/{vts-project-context,vts-svg-timeline,vts-qa-checklist,vts-law-viz-builder}/SKILL.md` + 프로젝트 루트 `CLAUDE.md` 생성. 향후 수정·재실행은 `vts-law-viz-builder` 스킬 트리거로 동일 파이프라인 재가동 가능.
 - **척도 수정 완료 (2026-05-18 08:18)** — 초기에 1–7 척도로 잘못 평가했던 것을 설문 패널 실제 척도(1–5)로 전면 재매핑. 단순 선형 매핑이 아닌 분포 보정 매핑(7→5, 6→4, 5→3, 4→2, 3→1) 적용.
 - **LLM 해석 비노출 결정 (2026-05-18 09:51)** — `policy_events.json`에서 `interpretation`(의미 견해) 필드 제거. 외부 노출 자료에는 객관 사실만 포함. 본 원칙은 웹페이지 사이드 패널·툴팁에도 동일 적용되어 QA §2.7 통과로 확정. 메모리: `feedback_no-llm-opinion-in-trusted-output`.
@@ -57,7 +57,7 @@ Vocational_Transition_Survey/
     ├── index.html                ← scaffold-engineer 산출 (2026-05-18)
     ├── css/style.css             ← scaffold-engineer 산출
     ├── js/data-loader.js         ← scaffold-engineer 산출
-    └── js/app.js                 ← viz-engineer 산출 (971 라인, SVG·인터랙션·필터)
+    └── js/app.js                 ← viz-engineer 산출 (1235 라인, SVG·인터랙션·필터·RELATIONS 모델 확장)
 ```
 
 ### 법령 시각화 트랙 진입 시 참고 (Phase D 완료, Phase E 대비)
@@ -68,9 +68,12 @@ Vocational_Transition_Survey/
 5. **로컬 검증**: `python -m http.server 8080 --directory Voc_edu_history` 후 `http://localhost:8080/`. file:// 직접 열기는 fetch CORS 차단으로 동작 안 함.
 
 ### 다음 세션 작업 후보
-1. (해결 완료 2026-05-19) ~~엣지 끝 화살표가 닿는 위치 조정~~ → 아래 작업 이력 참조.
-2. GitHub Pages 배포 설정 — settings → pages → main 브랜치 root 또는 Voc_edu_history/ 지정.
-3. 동일 트랙·동일 연도 이벤트 마커 겹침(2014년 4건 등) 처리, 카테고리 헤더 클릭 핸들러 추가.
+1. **이벤트→법령 엣지 시각 강도 폴리시** — 5·31 한 점에서 4개 법령으로 뻗는 보라 점선이 시각적으로 무거움. 옵션: (a) reference 강도로 낮춤(가는 선·옅은 색), (b) 사이드 패널 토글로 평소엔 숨김, (c) 이벤트→법령 전용 새 type 신설로 시각 분리
+2. **cache-bust 영구 해법** — 매 세션 수동 `?v=날짜X` 갱신은 부담. build_data.py가 빌드 mtime을 index.html·app.js import에 자동 박는 방식 또는 Python 서버 대신 Cache-Control: no-store 헤더 보내는 서버 사용
+3. GitHub Pages 배포 설정 — settings → pages → main 브랜치 root 또는 Voc_edu_history/ 지정. 단 ?v= cache-bust 쿼리도 잘 동작하므로 호환됨.
+4. 동일 트랙·동일 연도 이벤트 마커 겹침(2014년 4건 등) 처리, 카테고리 헤더 클릭 핸들러 추가
+5. (해결 완료 2026-05-20) ~~CareerNet·2005 산학협력 엣지 제거~~ · ~~표시 라벨 .md 절단~~ · ~~2026 끝점 라벨~~ → 작업 이력 참조
+6. (해결 완료 2026-05-19) ~~엣지 끝 화살표 위치 조정~~ · ~~타임라인 1945 확장~~ · ~~마이스터고 매핑~~ · ~~미연결 0 달성~~ · ~~RELATIONS 모델 확장~~ → 작업 이력 참조
 
 ### 카테고리별 분포
 | 카테고리 | 건수 |
@@ -85,6 +88,46 @@ Vocational_Transition_Survey/
 ---
 
 ## 작업 이력 (최신순)
+
+### 2026-05-20 — 이벤트 엣지 정리 + 표시 라벨 `.md` 절단 + 2026 라벨
+- **RELATIONS 3건 제거**: 사용자 결정으로 다음 엣지를 이벤트 마커로만 두기로 함
+  - `vocational_competency_dev_institute_act → 1999_진로정보센터_CareerNet.md` (basis 1999)
+  - `1999_진로정보센터_CareerNet.md → career_education_act` (basis 2015)
+  - `industrial_education_act → 2005_산학협력중등직업교육.md` (basis 2005)
+  - relations 24→21. CareerNet·2005 산학협력은 ★ 마커만, 인입·인출 엣지 0건. EVENT_LAW_MAP 첫 law_id로 트랙 배치는 유지
+- **표시 라벨 `.md` 절단**: `app.js`에 `stripMd(s)` 헬퍼 추가. 이벤트 식별자(`*.md`)가 노출되는 3 지점에 적용
+  - 엣지 SVG `<title>` (스크린리더용)
+  - 툴팁 `describeEdgeEndpoints` fromName/toName fallback
+  - 사이드 패널 제목 `openEdgePanel` "관계: …"
+  - 데이터 키(`EVENT_LAW_MAP`·`RELATIONS` from/to)는 `.md` 유지(Events 파일 매칭 무결성)
+- **타임라인 우측 끝점 2026 라벨**: `renderTimeAxis` 루프(5년 단위·10년 라벨)가 2025에서 끝나 2020 다음이 비던 문제. 루프 후 `TIME_END % 10 !== 0` 가드로 2026 라벨 추가
+- **cache-bust 토큰**: `?v=20260519c → 20260520a → 20260520b` (캐시된 구 JS 강제 무효화)
+- 검증: `python scripts/build_data.py` Validation OK, relations.json 21 edges. CareerNet·2005 산학협력 문자열은 `policy_events.json`·`EVENT_LAW_MAP`(트랙 배치용)에만 잔존
+
+### 2026-05-19 14:40 — RELATIONS 모델 확장(이벤트 ↔ 법령) + 미연결 3건 매핑 (미연결 3→0)
+- 사용자 결정: 웹검색 조사 후 전부 매핑 + RELATIONS 모델 확장 진행
+- **데이터 확장**:
+  - WebSearch로 「한국직업능력개발원법」(법률 제5315호, 1997-03-27 제정, 국가법령정보센터 lsiSeq=2913) 실재 확인. 2021-05-18 「정부출연연구기관 등의 설립·운영 및 육성에 관한 법률」 일부개정(법률 제18189호)으로 한국직업능력연구원 명칭 변경
+  - `LAW_REGISTRY`에 `vocational_competency_dev_institute_act` 추가 (진로교육 카테고리, verified: False, source_note 명시). 법령 19→20
+  - `EVENT_LAW_MAP` 3건 매핑:
+    - 1995 5·31 → ESEA + HEA + 자격기본법 + 평생교육법
+    - 1999 CareerNet → KRIVET법 + 진로교육법
+    - 2005 산학협력 → 산업교육진흥법
+- **RELATIONS 모델 확장** (이벤트도 from/to에 올 수 있게):
+  - `from_kind`/`to_kind` 옵셔널 필드(기본값 "law"). "event"이면 from/to 값을 이벤트 파일명(예: "1995_531교육개혁.md")으로 해석
+  - `build_data.py` validate(): from_kind/to_kind 인식, EVENT_LAW_MAP keys로 이벤트 id 정합성 검증
+  - `data-loader.js` validateRelations(): 시그니처에 eventIdSet 추가, kind별 분기
+  - `app.js` buildTrackLayout 반환에 `eventCoordsByFile: Map` 추가, renderEvents가 이벤트 별 (cx, cy_star) 등록
+  - `app.js` renderEdges: from_kind/to_kind 4 케이스 분기 처리. event 측은 별 좌표 직접 사용, law 측은 신규 `pickLawSideX(rel, law, width)` 헬퍼 (rel.year가 시행 범위면 그 시점, 아니면 enacted)
+  - `app.js` 마디 정수리 진입 로직(`computeArrowEndPoint`)은 toKind === "law"일 때만 적용. event 끝점은 위에서 수직 진입(c2 = (xEnd, yEnd - V))
+- **RELATIONS 7건 추가** (모두 basis):
+  - 5·31 → ESEA, HEA, 자격기본법, 평생교육법 (4건)
+  - KRIVET법 → CareerNet (1건)
+  - CareerNet → 진로교육법 (1건)
+  - 산업교육진흥법 → 2005 산학협력 (1건)
+  - relations 17 → 24
+- **검증**: 미연결 이벤트 **0건** (목표 달성). 24개 엣지 모두 렌더링, 이벤트↔법령 엣지 7건 정상, KRIVET법 ● (cx=1267, cy=972) 진로교육 카테고리 정상 위치. 콘솔 에러 0건. 스크린샷 `qa-orphans-zero.png`
+- 캐시 이슈: data-loader.js validateRelations 시그니처 변경 시 캐시된 옛 버전이 새 데이터를 거부 → cache-bust query `?v=20260519a → b → c` 두 번 갱신 후 정상 로드
 
 ### 2026-05-19 14:05 — 미연결 4건 MCP 재검증 + 2008 마이스터고 매핑 추가 (미연결 4→3)
 - 사용자 질의: 미연결 4건이 MCP로 확인해도 정말 매핑 불가인지

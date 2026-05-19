@@ -27,7 +27,7 @@ import {
   getLawById,
   eventsByLawId,
   indexRelations,
-} from "./data-loader.js?v=20260519a";
+} from "./data-loader.js?v=20260520b";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -118,6 +118,15 @@ function el(tag, attrs = {}) {
     node.setAttribute(k, String(v));
   }
   return node;
+}
+
+/**
+ * 이벤트 식별자(파일명)에서 .md 확장자 제거. 표시용 라벨에만 사용.
+ * 데이터 키(EVENT_LAW_MAP·RELATIONS의 from/to)는 .md 유지.
+ */
+function stripMd(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/\.md$/, "");
 }
 
 /**
@@ -290,7 +299,9 @@ function buildTrackLayout(laws, events) {
   }
 
   const totalHeight = y + 20;
-  return { rows, trackYByLawId, totalHeight, orphanRows };
+  // 이벤트 ★ 좌표 사전 저장소 — renderEvents가 채움, renderEdges가 RELATIONS의 event 측 좌표로 사용
+  const eventCoordsByFile = new Map();
+  return { rows, trackYByLawId, totalHeight, orphanRows, eventCoordsByFile };
 }
 
 /* ============================================================
@@ -324,6 +335,20 @@ function renderTimeAxis(svg, width, totalHeight) {
       label.textContent = String(year);
       g.appendChild(label);
     }
+  }
+
+  // 우측 끝점(TIME_END) 라벨 — 5년·10년 격자에 안 잡히는 현재 시점 연도 명시
+  if (TIME_END % 10 !== 0) {
+    const xEnd = yearToX(TIME_END, width);
+    const endLabel = el("text", {
+      x: xEnd,
+      y: TOP_AXIS_H - 16,
+      "text-anchor": "middle",
+      "font-size": 15,
+      fill: "#555555",
+    });
+    endLabel.textContent = String(TIME_END);
+    g.appendChild(endLabel);
   }
 
   // 좌측 라벨 영역과 본문 사이 구분선
@@ -632,6 +657,12 @@ function renderEvents(svg, events, layout, width, ctx) {
     star.setAttribute("data-event-index", String(idx));
     star.setAttribute("data-category", ev.category);
     if (lawIdForLink) star.setAttribute("data-law-id", lawIdForLink);
+    if (ev.file) star.setAttribute("data-event-file", ev.file);
+
+    // 별 중심 좌표를 layout에 등록 — RELATIONS(event 측) 엣지가 끌어다 씀
+    if (ev.file && layout.eventCoordsByFile) {
+      layout.eventCoordsByFile.set(ev.file, { x: cx, y: cy - 14 });
+    }
 
     const title = el("title");
     title.textContent = `${dateStr} · ${ev.title}`;
@@ -671,6 +702,22 @@ function renderEvents(svg, events, layout, width, ctx) {
  *
  * 모든 fallback은 rel.year. fromLaw·toLaw 결손 시 호출자 검증.
  */
+/**
+ * 이벤트 ↔ 법령 엣지에서 law 측 단일 x 좌표 산출.
+ * rel.year가 law 시행 범위(enacted~abolished) 내면 rel.year 시점, 아니면 enacted.
+ */
+function pickLawSideX(rel, law, width) {
+  const ry = parseInt(String(rel.year || ""), 10);
+  if (!law) return Number.isNaN(ry) ? undefined : yearToX(ry, width);
+  const enactedY = law.enacted_year || null;
+  const abolishedY = law.abolished ? parseInt(String(law.abolished).split("-")[0], 10) : null;
+  if (!Number.isNaN(ry) && enactedY !== null
+      && ry >= enactedY && (abolishedY === null || ry <= abolishedY)) {
+    return yearToX(ry, width);
+  }
+  return law.enacted ? dateToX(law.enacted, width) : undefined;
+}
+
 function computeEdgeXEndpoints(rel, fromLaw, toLaw, width) {
   const relYearX = yearToX(parseInt(String(rel.year || ""), 10) || TIME_START, width);
   const fromEnactedX = fromLaw && fromLaw.enacted ? dateToX(fromLaw.enacted, width) : null;
@@ -797,16 +844,48 @@ function renderEdges(svg, relations, layout, width, ctx) {
 
   relations.forEach((rel, idx) => {
     if (!rel) return;
-    const yFrom = layout.trackYByLawId.get(rel.from);
-    const yTo = layout.trackYByLawId.get(rel.to);
-    if (yFrom === undefined || yTo === undefined) {
-      console.warn(`[app] relation[${idx}] 트랙 미존재 from=${rel.from} to=${rel.to}`);
-      return;
+
+    // RELATIONS 모델: from_kind/to_kind 기본값 "law" — 이벤트 ↔ 법령 엣지 지원
+    const fromKind = rel.from_kind || "law";
+    const toKind = rel.to_kind || "law";
+
+    // 좌표 산출 — law는 트랙 행 y + (succession/basis/branch 시점) x, event는 별표 (x, y) 단일 지점
+    let xFrom, yFrom, xTo, yTo;
+    const fromLaw = (fromKind === "law") ? ctx.lawsById.get(rel.from) : null;
+    const toLaw = (toKind === "law") ? ctx.lawsById.get(rel.to) : null;
+
+    if (fromKind === "law" && toKind === "law") {
+      yFrom = layout.trackYByLawId.get(rel.from);
+      yTo = layout.trackYByLawId.get(rel.to);
+      const ep = computeEdgeXEndpoints(rel, fromLaw, toLaw, width);
+      xFrom = ep.xFrom;
+      xTo = ep.xTo;
+    } else {
+      // event 측 — 별표 좌표 직접 사용. law 측 — 트랙 y + rel.year(또는 enacted) 시점 x
+      if (fromKind === "event") {
+        const ec = layout.eventCoordsByFile.get(rel.from);
+        if (!ec) { console.warn(`[app] relation[${idx}] event 좌표 미존재 from=${rel.from}`); return; }
+        xFrom = ec.x;
+        yFrom = ec.y;
+      } else {
+        yFrom = layout.trackYByLawId.get(rel.from);
+        xFrom = pickLawSideX(rel, fromLaw, width);
+      }
+      if (toKind === "event") {
+        const ec = layout.eventCoordsByFile.get(rel.to);
+        if (!ec) { console.warn(`[app] relation[${idx}] event 좌표 미존재 to=${rel.to}`); return; }
+        xTo = ec.x;
+        yTo = ec.y;
+      } else {
+        yTo = layout.trackYByLawId.get(rel.to);
+        xTo = pickLawSideX(rel, toLaw, width);
+      }
     }
 
-    const fromLaw = ctx.lawsById.get(rel.from);
-    const toLaw = ctx.lawsById.get(rel.to);
-    const { xFrom, xTo } = computeEdgeXEndpoints(rel, fromLaw, toLaw, width);
+    if (yFrom === undefined || yTo === undefined || xFrom === undefined || xTo === undefined) {
+      console.warn(`[app] relation[${idx}] 좌표 미존재 from=${rel.from}(${fromKind}) to=${rel.to}(${toKind})`);
+      return;
+    }
 
     // 방향성 엣지(succession·basis·branch)의 끝점은 to 트랙 ● 마디 정수리 부근(12시~1시)으로 진입.
     // computeArrowEndPoint로 마디 경계선 위 좌표를 받아 c2 제어점을 끝점 바로 위로 끌어올려
@@ -818,9 +897,10 @@ function renderEdges(svg, relations, layout, width, ctx) {
 
     let xEnd = xTo;
     let yEnd = yTo;
-    let nx = 0; // 끝점→중심 방향 (단위벡터). reference는 미사용
+    let nx = 0; // 끝점→마디 중심 방향 (단위벡터). law 측 to에만 의미
     let ny = 0;
-    if (directional) {
+    // 끝점 진입 로직은 to가 law(마디 ●)일 때만 — event(★) 끝점은 별 중심 그대로 사용
+    if (directional && toKind === "law") {
       const ep = computeArrowEndPoint(xTo, yTo, dxSign);
       xEnd = ep.xEnd;
       yEnd = ep.yEnd;
@@ -829,9 +909,9 @@ function renderEdges(svg, relations, layout, width, ctx) {
     }
 
     // 베지어 제어점:
-    //   - directional: c2는 끝점에서 진입 방향(= 마디 중심 방향)의 반대로 V만큼 떨어진 위치.
-    //     → path 마지막 접선이 마디 표면 접선과 90° (화살촉 축이 원 중심을 통과).
-    //   - reference(수평 동일 시점): 짧은 거리면 y차 기반 곡률, 길면 1/3·2/3.
+    //   - directional + to=law: c2가 끝점에서 마디 중심 반대 방향(법선)으로 V만큼 — 화살촉 축이 원 중심 통과
+    //   - directional + to=event: 별 도형이라 위에서 진입 (c2 = (xEnd, yEnd - V))
+    //   - reference(수평 동일 시점): 짧은 거리면 y차 기반 곡률, 길면 1/3·2/3
     const dx = xEnd - xFrom;
     const dy = yEnd - yFrom;
     const absDx = Math.abs(dx);
@@ -839,12 +919,18 @@ function renderEdges(svg, relations, layout, width, ctx) {
     let c1y;
     let c2x;
     let c2y;
-    if (directional) {
+    if (directional && toKind === "law") {
       const V = Math.max(40, Math.abs(dy) * 0.4);
       c1x = xFrom + dx * 0.5;
       c1y = yFrom;
       c2x = xEnd - nx * V;
       c2y = yEnd - ny * V;
+    } else if (directional && toKind === "event") {
+      const V = Math.max(40, Math.abs(dy) * 0.4);
+      c1x = xFrom + dx * 0.5;
+      c1y = yFrom;
+      c2x = xEnd;
+      c2y = yEnd - V;
     } else if (absDx < 20) {
       const bend = Math.max(40, Math.abs(dy) * 0.3);
       c1x = xFrom + bend;
@@ -902,7 +988,7 @@ function renderEdges(svg, relations, layout, width, ctx) {
     });
 
     const title = el("title");
-    title.textContent = `${RELATION_LABEL[rel.type] || rel.type} (${rel.year}) ${fromLaw ? fromLaw.name_kr : rel.from} → ${toLaw ? toLaw.name_kr : rel.to}`;
+    title.textContent = `${RELATION_LABEL[rel.type] || rel.type} (${rel.year}) ${fromLaw ? fromLaw.name_kr : stripMd(rel.from)} → ${toLaw ? toLaw.name_kr : stripMd(rel.to)}`;
     group.appendChild(title);
     group.appendChild(hitPath);
     group.appendChild(linePath);
@@ -1004,8 +1090,8 @@ function showEventTooltip(ev, evt) {
  * @returns {{fromText: string, toText: string, arrow: string}}
  */
 function describeEdgeEndpoints(rel, fromLaw, toLaw) {
-  const fromName = fromLaw ? fromLaw.name_kr : rel.from;
-  const toName = toLaw ? toLaw.name_kr : rel.to;
+  const fromName = fromLaw ? fromLaw.name_kr : stripMd(rel.from);
+  const toName = toLaw ? toLaw.name_kr : stripMd(rel.to);
   const yr = String(rel.year || "");
   let fromText;
   let toText;
@@ -1178,7 +1264,7 @@ function openEdgePanel(rel, ctx) {
   const toLaw = ctx.lawsById.get(rel.to);
   const label = RELATION_LABEL[rel.type] || rel.type;
   const { fromText, toText, arrow } = describeEdgeEndpoints(rel, fromLaw, toLaw);
-  const title = `관계: ${fromLaw ? fromLaw.name_kr : rel.from} ${arrow} ${toLaw ? toLaw.name_kr : rel.to}`;
+  const title = `관계: ${fromLaw ? fromLaw.name_kr : stripMd(rel.from)} ${arrow} ${toLaw ? toLaw.name_kr : stripMd(rel.to)}`;
   const html =
     `<p class="meta">${escapeHtml(String(rel.year))} · 유형 ${escapeHtml(label)}</p>` +
     `<dl>` +

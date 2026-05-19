@@ -456,6 +456,35 @@
     "source_note": "MCP search_law(2026-05-18): 현행 법령 mst=246585"
   },
   {
+    "id": "vocational_competency_dev_institute_act",
+    "name_kr": "한국직업능력개발원법",
+    "aliases": [
+      "KRIVET 설치법"
+    ],
+    "enacted": "1997-03-27",
+    "enacted_year": 1997,
+    "abolished": null,
+    "category": "진로교육",
+    "track_order": 19,
+    "mst": "",
+    "law_id": "",
+    "verified": false,
+    "milestones": [
+      {
+        "date": "1997-03-27",
+        "type": "enacted",
+        "label": "한국직업능력개발원법 제정",
+        "law_number": "법률 제5315호"
+      },
+      {
+        "date": "2021-05-18",
+        "type": "renamed",
+        "label": "한국직업능력연구원으로 명칭 변경(정부출연연구기관법 일부개정)"
+      }
+    ],
+    "source_note": "WebSearch(2026-05-19): 법률 제5315호, 1997-03-27 제정. 국가법령정보센터 lsiSeq=2913. 2021-05-18 「정부출연연구기관 등의 설립·운영 및 육성에 관한 법률」 일부개정(법률 제18189호)으로 한국직업능력연구원 명칭 변경. 본 법률 자체 폐지 시점은 MCP 현행 DB 미확인 — 보수적으로 abolished=None 처리"
+  },
+  {
     "id": "career_education_act",
     "name_kr": "진로교육법",
     "aliases": [],
