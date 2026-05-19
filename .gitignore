@@ -1,0 +1,30 @@
+# 공유 금지 원자료 (Law_map_workflow.md 명시)
+Events/
+Screenshot/
+
+# 작업 부산물
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# QA 스크린샷·Playwright 부산물 (재생성 가능)
+qa-*.png
+.playwright-mcp/
+
+# 에디터·IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS·시스템
+desktop.ini
+
+# 노드 모듈 (혹시 모를 정적 빌드 도구용)
+node_modules/
+
+# Python 부산물
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,598 @@
+/* ==========================================================================
+   한국 직업교육훈련 정책사 — 법령 흐름 (라이트 모드 단일 테마)
+   ========================================================================== */
+
+:root {
+  /* 카테고리 — 색맹 친화 (Okabe-Ito 변형) */
+  --cat-secondary-voc: #E69F00;        /* 중등직업교육 — 주황 */
+  --cat-vocational-training: #0072B2;  /* 직업훈련 — 파랑 */
+  --cat-higher-lifelong: #009E73;      /* 고등 및 평생직업교육 — 초록 */
+  --cat-career: #CC79A7;               /* 진로교육 — 자홍 */
+  --cat-qualification: #56B4E9;        /* 직무능력 및 자격체계 — 하늘 */
+
+  /* 관계 엣지 — 색·패턴·굵기로 4종 차별화 */
+  --edge-succession: #000000;          /* 계승 — 검정 실선 */
+  --edge-basis: #5E3C99;               /* 기반 — 보라 긴 점선 (카테고리 5색과 분리) */
+  --edge-reference: #888888;           /* 연관 — 회색 짧은 점선 */
+  --edge-branch: #D55E00;              /* 분기 — 적주황 굵은 점선 (강조) */
+
+  /* 배경·텍스트 */
+  --bg-page: #FAFAFA;
+  --bg-panel: #FFFFFF;
+  --bg-header: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #777777;
+  --border: #DDDDDD;
+  --border-strong: #BBBBBB;
+  --shadow-panel: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-tooltip: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+  /* 레이아웃 */
+  --side-panel-width: 380px;
+  --header-z: 10;
+  --side-panel-z: 20;
+  --tooltip-z: 30;
+
+  /* 폰트 */
+  --font-family-base: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
+  --font-size-body: 15px;
+  --font-size-small: 14px;
+  --font-size-h1: 24px;
+  --font-size-h2: 19px;
+  --font-size-h3: 17px;
+  --line-height-base: 1.55;
+}
+
+/* 리셋 ----------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, p, ul, ol, li, dl, dt, dd, figure, fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+fieldset {
+  border: none;
+}
+
+code {
+  font-family: "Consolas", "Menlo", "D2Coding", monospace;
+  font-size: 14px;
+  background: #F0F0F0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+
+button {
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+}
+
+/* 헤더 ----------------------------------------------------------------- */
+
+.site-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 24px 16px;
+  position: relative;
+  z-index: var(--header-z);
+}
+
+.header-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+#page-title {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* 범례 ----------------------------------------------------------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 12px 16px;
+  background: #F5F5F5;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.legend-group {
+  min-width: 200px;
+}
+
+.legend-title {
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: none;
+}
+
+.legend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+}
+
+/* 엣지 범례의 기준 시점 설명 — 라벨 옆 작은 회색 텍스트 */
+.legend-detail {
+  display: inline;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+/* 엣지 범례 항목은 세로 정렬 — 라벨 본문(굵게) + detail이 같은 줄에 길어질 수 있어 wrap 허용 */
+.legend-list.legend-list-edge {
+  flex-direction: column;
+  gap: 4px;
+}
+.legend-list.legend-list-edge .legend-item {
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.legend-icon {
+  flex-shrink: 0;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 24px;
+  height: 3px;
+  flex-shrink: 0;
+}
+
+/* 필터 ----------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.filter-legend {
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 0 6px;
+}
+
+.filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 4px;
+}
+
+.filter-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+  accent-color: var(--text-primary);
+}
+
+.filter-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.filter-line {
+  display: inline-block;
+  width: 20px;
+  height: 3px;
+  flex-shrink: 0;
+}
+
+/* 메인 캔버스 --------------------------------------------------------- */
+
+.main-canvas {
+  flex: 1;
+  padding: 16px 0;
+  background: var(--bg-page);
+}
+
+.svg-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 16px;
+}
+
+#timeline-svg {
+  display: block;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* SVG 내부 도형 기본 (viz-engineer가 확장 가능) */
+#timeline-svg .track-bar {
+  cursor: pointer;
+}
+
+#timeline-svg .milestone,
+#timeline-svg .event-marker {
+  cursor: pointer;
+}
+
+/* 엣지 그룹 — 필터 토글 셀렉터 호환용 컨테이너 */
+#timeline-svg .edge {
+  cursor: pointer;
+}
+
+/* 보이지 않는 두꺼운 hit area path — 마우스/포커스만 받음 */
+#timeline-svg .edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+}
+
+/* 시각용 path — 이벤트는 받지 않음. 패턴은 유형별 클래스에서 지정 */
+#timeline-svg .edge-line {
+  fill: none;
+  stroke-width: 1.8;
+  pointer-events: none;
+}
+
+/* 관계 유형별 색상·패턴·굵기 — 그룹 클래스로 상속 (시각 path에 적용) */
+#timeline-svg .edge.edge-succession .edge-line {
+  stroke: var(--edge-succession);
+  stroke-dasharray: 0;          /* 실선 */
+  stroke-width: 1.8;
+}
+#timeline-svg .edge.edge-basis .edge-line {
+  stroke: var(--edge-basis);
+  stroke-dasharray: 12 4;       /* 긴 점선 */
+  stroke-width: 1.8;
+}
+#timeline-svg .edge.edge-reference .edge-line {
+  stroke: var(--edge-reference);
+  stroke-dasharray: 2 4;        /* 짧은 점선 (dot 느낌) */
+  stroke-width: 1.5;
+}
+#timeline-svg .edge.edge-branch .edge-line {
+  stroke: var(--edge-branch);
+  stroke-dasharray: 8 4;        /* 굵은 점선 */
+  stroke-width: 2.4;
+}
+
+/* 엣지 시점 마커 — 유형별 색상 + 시작/끝 구분
+ * 방향성 엣지(succession·basis·branch): 시작점 dot 유지, 끝점은 화살표가 표현하므로 숨김.
+ * 무방향 엣지(reference): 양 끝 dot 모두 노출 — 범례와 1:1 매칭. */
+#timeline-svg .edge-endpoint {
+  pointer-events: none;
+  stroke: #FFFFFF;
+  stroke-width: 1;
+}
+#timeline-svg .edge-endpoint-succession {
+  fill: var(--edge-succession);
+}
+#timeline-svg .edge-endpoint-basis {
+  fill: var(--edge-basis);
+}
+#timeline-svg .edge-endpoint-reference {
+  fill: var(--edge-reference);
+}
+#timeline-svg .edge-endpoint-branch {
+  fill: var(--edge-branch);
+}
+
+/* 방향성 엣지: 끝점 원 숨김 (화살표 머리가 끝 시각화). */
+#timeline-svg .edge.edge-succession .edge-endpoint-end,
+#timeline-svg .edge.edge-basis .edge-endpoint-end,
+#timeline-svg .edge.edge-branch .edge-endpoint-end {
+  display: none;
+}
+
+/* 좌측 법령명 라벨 — 두 줄 표기 호환 */
+#timeline-svg .law-label {
+  dominant-baseline: middle;
+}
+#timeline-svg .law-label tspan {
+  font-size: 15px;
+}
+
+/* hover/focus 시 시각 path 강조 — stroke-width 만 키우고 dasharray 는 유형별 유지 */
+#timeline-svg .edge.edge-succession:hover .edge-line,
+#timeline-svg .edge.edge-succession:focus .edge-line,
+#timeline-svg .edge.edge-succession:focus-within .edge-line {
+  stroke-width: 2.6;
+}
+#timeline-svg .edge.edge-basis:hover .edge-line,
+#timeline-svg .edge.edge-basis:focus .edge-line,
+#timeline-svg .edge.edge-basis:focus-within .edge-line {
+  stroke-width: 2.8;
+}
+#timeline-svg .edge.edge-reference:hover .edge-line,
+#timeline-svg .edge.edge-reference:focus .edge-line,
+#timeline-svg .edge.edge-reference:focus-within .edge-line {
+  stroke-width: 2.4;
+}
+#timeline-svg .edge.edge-branch:hover .edge-line,
+#timeline-svg .edge.edge-branch:focus .edge-line,
+#timeline-svg .edge.edge-branch:focus-within .edge-line {
+  stroke-width: 3.4;
+}
+
+/* 사이드 패널 --------------------------------------------------------- */
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--side-panel-width);
+  max-width: 92vw;
+  height: 100vh;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  z-index: var(--side-panel-z);
+  transform: translateX(0);
+  transition: transform 0.22s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel[hidden] {
+  display: flex;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+.side-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.side-panel-title {
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.side-panel-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  border-radius: 4px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-panel-close:hover,
+.side-panel-close:focus-visible {
+  background: #F0F0F0;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.side-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+  line-height: var(--line-height-base);
+}
+
+.side-panel-placeholder {
+  color: var(--text-muted);
+  font-size: var(--font-size-body);
+}
+
+/* 사이드 패널 내부 콘텐츠 기본 스타일 (viz-engineer가 확장) */
+.side-panel-content h3 {
+  font-size: var(--font-size-h3);
+  font-weight: 700;
+  margin: 16px 0 8px;
+  color: var(--text-primary);
+}
+
+.side-panel-content h3:first-child {
+  margin-top: 0;
+}
+
+.side-panel-content p {
+  margin-bottom: 8px;
+  font-size: var(--font-size-body);
+}
+
+.side-panel-content dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  font-size: var(--font-size-body);
+}
+
+.side-panel-content dt {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.side-panel-content dd {
+  color: var(--text-primary);
+}
+
+.side-panel-content ul {
+  padding-left: 16px;
+  list-style: disc;
+  font-size: var(--font-size-body);
+}
+
+.side-panel-content li {
+  margin-bottom: 4px;
+}
+
+/* 툴팁 --------------------------------------------------------------- */
+
+.tooltip {
+  position: absolute;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: var(--shadow-tooltip);
+  padding: 8px 10px;
+  font-size: var(--font-size-small);
+  color: var(--text-primary);
+  line-height: 1.45;
+  pointer-events: none;
+  z-index: var(--tooltip-z);
+  max-width: 320px;
+}
+
+.tooltip strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+}
+
+.tooltip .tooltip-meta {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+/* 푸터 --------------------------------------------------------------- */
+
+.site-footer {
+  background: #F0F0F0;
+  border-top: 1px solid var(--border);
+  padding: 16px 24px;
+  margin-top: 16px;
+}
+
+.footer-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.footer-title {
+  font-size: var(--font-size-h3);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.footer-list {
+  padding-left: 18px;
+  list-style: disc;
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+}
+
+.footer-list li {
+  margin-bottom: 4px;
+}
+
+/* 접근성: 키보드 포커스 가시화 */
+:focus-visible {
+  outline: 2px solid #005FCC;
+  outline-offset: 2px;
+}
+
+/* 가로 좁은 화면 대응 (사이드 패널 폭 축소만, 다크 모드 분기 없음) */
+@media (max-width: 640px) {
+  :root {
+    --side-panel-width: 320px;
+  }
+
+  .site-header {
+    padding: 16px 14px 12px;
+  }
+
+  #page-title {
+    font-size: 22px;
+  }
+}

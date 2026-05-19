@@ -1,0 +1,121 @@
+[
+  {
+    "from": "vocational_training_act_1967",
+    "to": "vocational_training_special_act",
+    "type": "basis",
+    "year": 1974,
+    "note": "1967 직업훈련법의 자율 보조금 모델 작동 정지에 대응한 특별조치법 제정"
+  },
+  {
+    "from": "vocational_training_act_1967",
+    "to": "vocational_training_basic_act",
+    "type": "succession",
+    "year": 1976,
+    "note": "1967 직업훈련법 폐지, 직업훈련기본법으로 일원화"
+  },
+  {
+    "from": "vocational_training_special_act",
+    "to": "vocational_training_basic_act",
+    "type": "succession",
+    "year": 1976,
+    "note": "특별조치법 폐지, 직업훈련기본법으로 통합"
+  },
+  {
+    "from": "vocational_training_basic_act",
+    "to": "vocational_training_promotion_fund_act",
+    "type": "basis",
+    "year": 1976,
+    "note": "직업훈련기본법과 동시 제정된 재원 짝법(Train-or-Pay 체계)"
+  },
+  {
+    "from": "vocational_training_basic_act",
+    "to": "ktma_act",
+    "type": "basis",
+    "year": 1981,
+    "note": "공공직업훈련 거버넌스로 한국직업훈련관리공단 설립"
+  },
+  {
+    "from": "vocational_training_basic_act",
+    "to": "lifelong_vocational_skills_dev_act",
+    "type": "succession",
+    "year": 1997,
+    "note": "직업훈련기본법 폐지, 근로자직업훈련촉진법 제정(민간 자율 시장 체제 전환)"
+  },
+  {
+    "from": "vocational_training_promotion_fund_act",
+    "to": "employment_insurance_act",
+    "type": "succession",
+    "year": 1995,
+    "note": "분담금 재원이 고용보험 직능개발사업으로 편입"
+  },
+  {
+    "from": "employment_insurance_act",
+    "to": "lifelong_vocational_skills_dev_act",
+    "type": "basis",
+    "year": 1997,
+    "note": "고용보험 직능개발사업의 운영 근거를 별도 법률로 분리"
+  },
+  {
+    "from": "vocational_training_act_1967",
+    "to": "national_technical_qualifications_act",
+    "type": "basis",
+    "year": 1973,
+    "note": "직업훈련 영역에서 자격제도 분리·국가 통합 자격체계 출범"
+  },
+  {
+    "from": "national_technical_qualifications_act",
+    "to": "qualifications_basic_act",
+    "type": "basis",
+    "year": 1997,
+    "note": "국가기술자격 중심에서 통합 자격체계(국가자격+민간자격)로 확장"
+  },
+  {
+    "from": "national_technical_qualifications_act",
+    "to": "skill_promotion_act",
+    "type": "reference",
+    "year": 1989,
+    "note": "자격제도와 숙련기술 우대정책의 상호 참조"
+  },
+  {
+    "from": "industrial_education_act",
+    "to": "higher_education_act",
+    "type": "reference",
+    "year": 1977,
+    "note": "교육법 개정으로 전문대학 체제 출범(이후 1997 고등교육법 분할)"
+  },
+  {
+    "from": "education_act_1949",
+    "to": "elementary_secondary_education_act",
+    "type": "branch",
+    "year": 1997,
+    "note": "1949 교육법 폐지·분할. 초등·중등 영역이 「초·중등교육법」(법률 제5438호)로 이관"
+  },
+  {
+    "from": "education_act_1949",
+    "to": "higher_education_act",
+    "type": "branch",
+    "year": 1997,
+    "note": "1949 교육법 폐지·분할. 고등교육 영역이 「고등교육법」(법률 제5439호)로 이관"
+  },
+  {
+    "from": "lifelong_vocational_skills_dev_act",
+    "to": "industry_field_work_learning_act",
+    "type": "basis",
+    "year": 2019,
+    "note": "일학습병행제 운영 근거를 별도 법률로 제정"
+  },
+  {
+    "from": "elementary_secondary_education_act",
+    "to": "career_education_act",
+    "type": "basis",
+    "year": 2015,
+    "note": "초·중등교육법의 진로교육 운영을 별도 법률로 제도화"
+  },
+  {
+    "from": "hrd_basic_act",
+    "to": "national_education_council_act",
+    "type": "reference",
+    "year": 2021,
+    "note": "범부처 인적자원개발 거버넌스와 국가교육 거버넌스의 메타 정책 영역 연속성"
+  }
+]
