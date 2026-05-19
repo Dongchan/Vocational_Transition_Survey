@@ -5,7 +5,7 @@
  * 외부 라이브러리 의존성 0. ES Module. Vanilla DOM (createElementNS) 사용.
  *
  * 책임 범위:
- *   1) 시간축(1960~2026) 좌표 변환 헬퍼
+ *   1) 시간축(1945~2026) 좌표 변환 헬퍼
  *   2) 카테고리 그룹 → 제정연도순 트랙 정렬
  *   3) 법령 트랙 막대 렌더
  *   4) 법령 마디(milestone) 도형 렌더 (제정 ●, 개정 ▲, 폐지·분기 ◆)
@@ -27,7 +27,7 @@ import {
   getLawById,
   eventsByLawId,
   indexRelations,
-} from "./data-loader.js";
+} from "./data-loader.js?v=20260519a";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -35,7 +35,7 @@ import {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const TIME_START = 1960;
+const TIME_START = 1945;
 const TIME_END = 2026;
 const LEFT_LABEL_W = 300;
 const RIGHT_PAD = 100;
@@ -721,6 +721,41 @@ function computeEdgeXEndpoints(rel, fromLaw, toLaw, width) {
 }
 
 /**
+ * 방향성 엣지의 끝점을 to 트랙 ● 마디 정수리 부근(12시~1시 방향)으로 산출.
+ *
+ * 좌표계: SVG y축은 아래로 증가. 마디 중심 (xTo, yTo), 반지름 r.
+ *   - 12시 방향   = (xTo, yTo - r)
+ *   - 1시 방향(30°) ≈ (xTo + r·sin30°, yTo - r·cos30°)
+ *   - 11시 방향   ≈ (xTo - r·sin30°, yTo - r·cos30°)
+ *
+ * dxSign(좌→우 화살표면 +1, 우→좌면 -1)에 따라 좌우 대칭 처리.
+ * 마디 반지름은 enacted ● 도형 기준 MILESTONE_ENACTED_R(=8).
+ *
+ * TODO(user-input): 아래 본체를 5~10라인으로 작성.
+ *   - α: 정수리에서 옆으로 기운 각도(라디안). 0=정수리(12시), Math.PI/6=1시/11시.
+ *   - 반환 { xEnd, yEnd } 가 마디 경계선 위에 있어야 함.
+ *   - dxSign 부호에 맞춰 1시(좌→우) 또는 11시(우→좌)로 진입하도록 x를 좌우로 흔들 것.
+ *
+ * 호출부: renderEdges 내부. 결과 (xEnd, yEnd)는 베지어 끝점과 endMarker circle 양쪽에 쓰임.
+ */
+const MILESTONE_ENACTED_R = 8;
+function computeArrowEndPoint(xTo, yTo, dxSign) {
+  // === USER FILL START ===
+  const r = MILESTONE_ENACTED_R;
+  const alpha = Math.PI / 3; // 60° — 2시(좌→우) / 10시(우→좌) 방향
+  const sinA = Math.sin(alpha);
+  const cosA = Math.cos(alpha);
+  const xEnd = xTo + dxSign * r * sinA;
+  const yEnd = yTo - r * cosA;
+  // 화살촉이 마디 원 중심을 향하도록 진입 방향(= 끝점→중심) 단위 벡터도 함께 반환.
+  // c2 = xEnd - V·nx, yEnd - V·ny 형태로 쓰면 path 마지막 접선이 마디 표면 접선과 수직.
+  const nx = -dxSign * sinA;
+  const ny = cosA;
+  return { xEnd, yEnd, nx, ny };
+  // === USER FILL END ===
+}
+
+/**
  * SVG <defs>에 관계 유형별 화살표 마커와 시점 마커 정의 추가.
  * 한 번만 호출.
  */
@@ -773,33 +808,56 @@ function renderEdges(svg, relations, layout, width, ctx) {
     const toLaw = ctx.lawsById.get(rel.to);
     const { xFrom, xTo } = computeEdgeXEndpoints(rel, fromLaw, toLaw, width);
 
-    // 방향성 엣지(succession·basis·branch)의 끝점은 to 트랙의 마디 도형(●)에 정확히 겹쳐
-    // 화살표가 가려지므로, dx 방향에 따라 끝점 x를 8~10px 안쪽으로 back-off.
-    // 거의 수직 케이스(|dx|<4)는 y 차이로 충분히 분리되므로 back-off 생략.
-    // reference는 양 끝 동그라미라 back-off 불필요.
+    // 방향성 엣지(succession·basis·branch)의 끝점은 to 트랙 ● 마디 정수리 부근(12시~1시)으로 진입.
+    // computeArrowEndPoint로 마디 경계선 위 좌표를 받아 c2 제어점을 끝점 바로 위로 끌어올려
+    // 마지막 접선이 거의 수직이 되도록 함 — 화살촉이 마디 위쪽에서 아래로 꽂힘.
+    // reference는 무방향이라 양 끝 원 유지·수평 진입 그대로.
     const directional = rel.type === "succession" || rel.type === "basis" || rel.type === "branch";
     const dxRaw = xTo - xFrom;
-    let xToFinal = xTo;
-    if (directional && Math.abs(dxRaw) > 4) {
-      const sign = dxRaw >= 0 ? 1 : -1;
-      xToFinal = xTo - sign * 10;
+    const dxSign = dxRaw >= 0 ? 1 : -1;
+
+    let xEnd = xTo;
+    let yEnd = yTo;
+    let nx = 0; // 끝점→중심 방향 (단위벡터). reference는 미사용
+    let ny = 0;
+    if (directional) {
+      const ep = computeArrowEndPoint(xTo, yTo, dxSign);
+      xEnd = ep.xEnd;
+      yEnd = ep.yEnd;
+      nx = ep.nx;
+      ny = ep.ny;
     }
 
-    // 베지어 제어점: 수평 거리 충분 시 1/3·2/3 지점, 짧으면 y차 기반 곡률
-    const dx = xToFinal - xFrom;
-    const dy = yTo - yFrom;
+    // 베지어 제어점:
+    //   - directional: c2는 끝점에서 진입 방향(= 마디 중심 방향)의 반대로 V만큼 떨어진 위치.
+    //     → path 마지막 접선이 마디 표면 접선과 90° (화살촉 축이 원 중심을 통과).
+    //   - reference(수평 동일 시점): 짧은 거리면 y차 기반 곡률, 길면 1/3·2/3.
+    const dx = xEnd - xFrom;
+    const dy = yEnd - yFrom;
     const absDx = Math.abs(dx);
     let c1x;
+    let c1y;
     let c2x;
-    if (absDx < 20) {
+    let c2y;
+    if (directional) {
+      const V = Math.max(40, Math.abs(dy) * 0.4);
+      c1x = xFrom + dx * 0.5;
+      c1y = yFrom;
+      c2x = xEnd - nx * V;
+      c2y = yEnd - ny * V;
+    } else if (absDx < 20) {
       const bend = Math.max(40, Math.abs(dy) * 0.3);
       c1x = xFrom + bend;
-      c2x = xToFinal + bend;
+      c1y = yFrom;
+      c2x = xEnd + bend;
+      c2y = yEnd;
     } else {
       c1x = xFrom + dx * 0.4;
+      c1y = yFrom;
       c2x = xFrom + dx * 0.6;
+      c2y = yEnd;
     }
-    const d = `M ${xFrom} ${yFrom} C ${c1x} ${yFrom}, ${c2x} ${yTo}, ${xToFinal} ${yTo}`;
+    const d = `M ${xFrom} ${yFrom} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${xEnd} ${yEnd}`;
 
     // 그룹 컨테이너 (필터 .edge 셀렉터 호환)
     const group = el("g", {
@@ -837,8 +895,8 @@ function renderEdges(svg, relations, layout, width, ctx) {
       class: `edge-endpoint edge-endpoint-start edge-endpoint-${rel.type}`,
     });
     const endMarker = el("circle", {
-      cx: xToFinal,
-      cy: yTo,
+      cx: xEnd,
+      cy: yEnd,
       r: endR,
       class: `edge-endpoint edge-endpoint-end edge-endpoint-${rel.type}`,
     });

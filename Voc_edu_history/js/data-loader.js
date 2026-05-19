@@ -37,7 +37,7 @@ const ALLOWED_RELATION_TYPES = ["succession", "basis", "reference", "branch"];
 async function fetchJsonArray(relativePath) {
   let response;
   try {
-    response = await fetch(relativePath);
+    response = await fetch(relativePath, { cache: "no-store" });
   } catch (err) {
     console.error(`[data-loader] fetch 실패: ${relativePath}`, err);
     throw err;

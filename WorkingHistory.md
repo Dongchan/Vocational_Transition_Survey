@@ -7,7 +7,8 @@
 
 ### 현재 상태
 - **[설문 트랙] Phase 1·2 완료, Phase 3(사용자 검토) 대기** — 29개 Events MD `status: analyzed`. 1–5 척도 기준 점수·견해 초안 채움. 사용자가 검토 후 `status: reviewed`로 갱신 예정.
-- **[법령 시각화 트랙] Phase A·B·C·D 완료 + 후속 폴리시 진행 중** — 산출물: `Voc_edu_history/index.html`·`css/style.css`·`js/data-loader.js`·`js/app.js`. 데이터(2026-05-19 갱신): laws 19(13 verified+6 unverified, 1949 교육법 추가)·relations 17(succession 4·basis 8·reference 3·**branch 2**)·events 29. 엣지 색·패턴 차별화, hit area 14px 확장, SVG 캔버스 1900x폭, 우측 패딩 100px 확보 적용. 로컬 HTTP 서버 8080 가동 중.
+- **[법령 시각화 트랙] Phase A·B·C·D 완료 + 후속 폴리시 진행 중** — 산출물: `Voc_edu_history/index.html`·`css/style.css`·`js/data-loader.js`·`js/app.js`. 데이터(2026-05-19 갱신): laws 19(13 verified+6 unverified, 1949 교육법 추가)·relations 17(succession 4·basis 8·reference 3·**branch 2**)·events 29(미연결 3: 5·31·CareerNet·2005 산학협력). 엣지 색·패턴 차별화, hit area 14px 확장, SVG 캔버스 1900x폭, 우측 패딩 100px 확보, 라벨 두 줄, 엣지 끝 화살표(markerWidth 14) 적용. **화살표 끝점은 마디 ● 정수리 2시(좌→우)·10시(우→좌) 방향 진입** (`computeArrowEndPoint`, α=60°, r=8, c2가 끝점 진입 방향 반대로 V만큼 떨어져 path 접선이 마디 표면 접선과 90°). 시간축 1945~2026. data-loader fetch + script import에 cache-bust query. 로컬 HTTP 서버 8080 가동 중.
+- **GitHub 공개 저장소 (2026-05-19)** — https://github.com/Dongchan/Vocational_Transition_Survey (브랜치 main, 첫 커밋 98aa6f8). GitHub Pages 배포는 미설정 — 차후 설정 필요.
 - **하네스 구성 완료 (2026-05-18 10:11)** — `harness:harness` 스킬로 `.claude/agents/{scaffold-engineer,viz-engineer,qa-validator}.md` + `.claude/skills/{vts-project-context,vts-svg-timeline,vts-qa-checklist,vts-law-viz-builder}/SKILL.md` + 프로젝트 루트 `CLAUDE.md` 생성. 향후 수정·재실행은 `vts-law-viz-builder` 스킬 트리거로 동일 파이프라인 재가동 가능.
 - **척도 수정 완료 (2026-05-18 08:18)** — 초기에 1–7 척도로 잘못 평가했던 것을 설문 패널 실제 척도(1–5)로 전면 재매핑. 단순 선형 매핑이 아닌 분포 보정 매핑(7→5, 6→4, 5→3, 4→2, 3→1) 적용.
 - **LLM 해석 비노출 결정 (2026-05-18 09:51)** — `policy_events.json`에서 `interpretation`(의미 견해) 필드 제거. 외부 노출 자료에는 객관 사실만 포함. 본 원칙은 웹페이지 사이드 패널·툴팁에도 동일 적용되어 QA §2.7 통과로 확정. 메모리: `feedback_no-llm-opinion-in-trusted-output`.
@@ -67,7 +68,9 @@ Vocational_Transition_Survey/
 5. **로컬 검증**: `python -m http.server 8080 --directory Voc_edu_history` 후 `http://localhost:8080/`. file:// 직접 열기는 fetch CORS 차단으로 동작 안 함.
 
 ### 다음 세션 작업 후보
-1. **엣지 끝 화살표가 닿는 위치 조정** — 현재는 to 트랙의 ● 마디 좌측 직전(9시 방향)에서 종료. 사용자 요청: ● 마디 경계선의 12시~1시 방향에서 끝나도록. 곡선의 끝점 (x, y) 좌표를 `mid - r·cos(75°), mid - r·sin(75°)` 정도로 조정하고 베지어 제어점도 위쪽 진입이 자연스럽도록 갱신. `viz-engineer` partial 모드 호출.
+1. (해결 완료 2026-05-19) ~~엣지 끝 화살표가 닿는 위치 조정~~ → 아래 작업 이력 참조.
+2. GitHub Pages 배포 설정 — settings → pages → main 브랜치 root 또는 Voc_edu_history/ 지정.
+3. 동일 트랙·동일 연도 이벤트 마커 겹침(2014년 4건 등) 처리, 카테고리 헤더 클릭 핸들러 추가.
 
 ### 카테고리별 분포
 | 카테고리 | 건수 |
@@ -82,6 +85,68 @@ Vocational_Transition_Survey/
 ---
 
 ## 작업 이력 (최신순)
+
+### 2026-05-19 14:05 — 미연결 4건 MCP 재검증 + 2008 마이스터고 매핑 추가 (미연결 4→3)
+- 사용자 질의: 미연결 4건이 MCP로 확인해도 정말 매핑 불가인지
+- Korean Law MCP 재검증:
+  - **「한국직업능력개발원법」 / 「한국직업능력연구원법」 — 검색 결과 0건.** 1996 한국직업능력개발원(KRIVET)은 정부출연연구기관 출연 근거로 설치된 기관이고 단일 설치법이 존재하지 않음. Events MD `key_documents`의 「한국직업능력개발원법」 표기는 약식 표기/부정확. 단일 법령 매핑 불가
+  - **「초·중등교육법 시행령」 mst=285453 확인.** 마이스터고는 이 시행령 제76조의3(산업수요맞춤형 고등학교)에 근거 → 모법 `elementary_secondary_education_act`에 매핑 가능
+- 4건 처리 결정:
+  | 이벤트 | 처리 |
+  |---|---|
+  | 1995 5·31 교육개혁 | 정책 문서(대통령자문위 방안). 법령 매핑 불가, 미연결 유지 |
+  | 1999 진로정보센터 | 단일 설치법 없음. 미연결 유지 |
+  | 2005 산학협력 중등직업교육 | 정책 문서(직업교육체제 혁신방안). 미연결 유지 |
+  | **2008 마이스터고** | **시행령 근거 확인. `elementary_secondary_education_act` basis 매핑 추가** |
+- 변경: `build_data.py` `EVENT_LAW_MAP["2008_마이스터고.md"]` → `["elementary_secondary_education_act"]`. 시행령 근거 주석 inline 추가
+- 재빌드: laws 19 / relations 17 / events 29 그대로, validate OK
+- Playwright 캐시 문제 발견·해결:
+  - 페이지 reload·새 navigate에도 옛 SVG 렌더링 유지 (data-loader.js·policy_events.json 모두 캐시)
+  - `data-loader.js` fetch에 `{ cache: "no-store" }` 추가
+  - `index.html` script src + `app.js` data-loader import 양쪽에 `?v=20260519a` cache-bust query 추가
+- 검증: 마이스터고 ★ data-law-id="elementary_secondary_education_act", cy=194.5 (초·중등교육법 트랙 행 위 15.5px), 미연결 카운트 4→3 (남은 idx 6·10·12). 스크린샷 `qa-meister-mapped.png`
+
+### 2026-05-19 13:55 — 타임라인 시작 연도 1960 → 1945로 조정 (1949 교육법 노출)
+- 사용자 지적: 1949 교육법 제정 시점이 화면 좌측 잘림으로 안 보임
+- `Voc_edu_history/js/app.js`: `TIME_START = 1960 → 1945` (한 줄), 주석 헤더 함께 갱신
+- 검증: 1949 교육법 ● cx=392 (좌측 라벨 영역 300px 우측 92px), 눈금 라벨 1950~2020 8개 10년 단위 정렬
+- 1949 → 1997 분기 2건(→ 초·중등교육법, → 고등교육법) 시각 노출 확인. 스크린샷 `qa-timeline-1945.png`
+- 데이터(`build_data.py`)에 이미 `education_act_1949` enacted=1949-12-31, abolished=1997-12-13으로 기록되어 있었음 — 표시 영역 부족이었던 것
+
+### 2026-05-19 13:40 — 화살촉 축을 마디 원 법선과 일치 (접선 직각 진입)
+- 사용자 추가 요청: 화살표 삼각형 꼭지점→밑변 선과 마디 접선이 수직이 되도록 = 화살촉이 마디 원 중심을 똑바로 가리키도록
+- `computeArrowEndPoint` 반환에 끝점→중심 단위벡터 `nx, ny` 추가 (`nx = -dxSign·sinα`, `ny = cosα`)
+- `renderEdges` c2 변경: `c2 = (xEnd - nx·V, yEnd - ny·V)` — 마지막 베지어 접선이 마디 표면 접선과 90°
+- 진입 각도 α는 60°(2시) 유지. α가 무엇이든 화살촉이 원 중심을 통과
+- Playwright 검증: 14건 모두 `tangentAngleDiffFromCenter` = 0.000° (path 마지막 접선과 끝점→중심 벡터 완전 일치). 스크린샷 `qa-arrow-normal.png`
+
+### 2026-05-19 13:30 — 진입 각도 1시 → 2시로 조정
+- 사용자 요청: α=15°(1시) → α=60°(2시)로 변경
+- `computeArrowEndPoint` 상수만 `Math.PI/12` → `Math.PI/3` 교체
+- 14건 모두 ±60° (좌→우 13건 +60°, 우→좌 1건 -60°), 마디 r=8 경계선 위. 스크린샷 `qa-arrow-2oclock.png`
+
+### 2026-05-19 13:25 — 엣지 화살표 끝점을 마디 정수리(12시~1시) 진입으로 변경
+- 사용자 요청 (이전 세션 후보): 현재 to 트랙 ● 마디 9시 방향(좌측 수평) 진입을 12시~1시 방향(정수리)으로 조정
+- `Voc_edu_history/js/app.js` 수정:
+  - 신규 `computeArrowEndPoint(xTo, yTo, dxSign)` 함수 + 상수 `MILESTONE_ENACTED_R = 8` 추가. α=15°, dxSign 부호로 좌→우는 1시(angleFromTop +15°), 우→좌는 11시(-15°) 대칭 진입
+  - `renderEdges` 내부: 기존 `xToFinal = xTo - sign·10`(수평 back-off)을 `(xEnd, yEnd)` 쌍으로 교체. 끝점은 마디 r=8 경계선 위
+  - 베지어 c2 제어점을 `(xEnd, yEnd - V)`로 끌어올림 (V = max(40, |dy|·0.4)). 마지막 접선이 거의 수직 → 화살촉이 마디 정수리에 위에서 아래로 꽂힘
+  - c1은 시작점 수평 연장 `(xFrom + dx·0.5, yFrom)` 유지. reference 무방향은 기존 양 끝 원·수평 진입 그대로
+  - `endMarker` circle도 `xEnd, yEnd` 사용 (방향성 엣지는 CSS로 숨김, 좌표 일치는 시점 마커 정합성용)
+- Playwright DOM 검증:
+  - 17개 엣지 중 방향성 14건 모두 distFromCenter = 8.00 (마디 경계선 정확)
+  - angleFromTop 분포: +15° 13건, -15° 1건 (employment_insurance_act 1995, 좌측 마디로 진입)
+  - 콘솔 에러 0건
+- 스크린샷 `qa-arrow-top.png` 저장 — 곡선이 위에서 아래로 마디에 꽂히는 형태로 시각 확인
+- 코드 작성 분담: 진입 각도 함수 본체(α 선택, sin·cos 좌표 계산)는 사용자가 직접 결정·작성 가능하도록 `=== USER FILL START/END ===` 마커로 분리 표기
+
+### 2026-05-19 09:45 — git 초기화 + GitHub 공개 저장소 생성·push
+- `git init` (브랜치 main), user.email=chan.tangentbeta@gmail.com, user.name=Dongchan
+- `.gitignore` 보강: 기존(Events/·Screenshot/·*.log·node_modules·__pycache__) + 추가(`qa-*.png`·`.playwright-mcp/`)
+- 21개 파일 첫 커밋 (commit 98aa6f8): `.claude/`(에이전트 3 + 스킬 4), `Voc_edu_history/`(코드 4 + 데이터 JSON 3 + Plan_History_analysis.md + build_data.py), 루트 문서 5종(CLAUDE.md·Law_map_workflow.md·Plan_Summary.md·WorkingHistory.md·.gitignore)
+- gh CLI로 공개 저장소 신규 생성·push 완료: **https://github.com/Dongchan/Vocational_Transition_Survey**
+- gh repo create의 description 인자 줄바꿈 포함 시 GraphQL 거부됨(`control characters not allowed`) — 단일 라인으로 재시도 후 성공
+- GitHub Pages 배포는 별도 설정 필요 (settings → pages → main 브랜치 root 또는 Voc_edu_history/ 지정)
 
 ### 2026-05-19 09:38 — 엣지 화살표 가시성 확보
 - 사용자 보고: 화살표가 안 보임

@@ -531,7 +531,8 @@ EVENT_LAW_MAP = {
     "2006_한국폴리텍대학.md": ["lifelong_vocational_skills_dev_act"],
     "2007_전문대학학위경로.md": ["higher_education_act"],
     "2008_내일배움카드.md": ["lifelong_vocational_skills_dev_act"],
-    "2008_마이스터고.md": [],
+    # 마이스터고는 「초·중등교육법 시행령」 제76조의3(산업수요맞춤형 고등학교) 근거 — 모법에 매핑
+    "2008_마이스터고.md": ["elementary_secondary_education_act"],
     "2011_진로진학상담교사.md": ["elementary_secondary_education_act"],
     "2012_지역산학협력강화.md": ["higher_education_act"],
     "2013_진로체험지원센터.md": ["elementary_secondary_education_act"],

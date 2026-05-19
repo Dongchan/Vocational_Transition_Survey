@@ -231,7 +231,9 @@
     "government": "이명박 정부",
     "direction_shift": 4,
     "impact": 4,
-    "law_ids": [],
+    "law_ids": [
+      "elementary_secondary_education_act"
+    ],
     "summary": "중등직업교육 역사에서 마이스터고의 도입은 매우 중요한 의미를 갖고 있음. 그간의 고등교육 보편화와 실업계고 기피 현상으로 위기에 처했던 중등직업교육을 학력 중심에서 '숙련' 중심으로 전환시킨 정책적 분기점으로 이해할 수 있음."
   },
   {
