@@ -1246,12 +1246,18 @@ function openEventPanel(ev, ctx) {
         .join("")}</ul>`
     : `<h3>연결된 법령</h3><p class="empty">없음 (정책 이벤트 단독).</p>`;
 
+  // 공개용(_deploy) 데이터에는 direction_shift·impact 필드가 없음 → dl 블록 생략
+  const scoresHtml =
+    (ev.direction_shift !== undefined && ev.impact !== undefined)
+      ? `<dl>` +
+          `<dt>전환 정도</dt><dd>${escapeHtml(String(ev.direction_shift))} / 5</dd>` +
+          `<dt>정책 영향력</dt><dd>${escapeHtml(String(ev.impact))} / 5</dd>` +
+        `</dl>`
+      : "";
+
   const html =
     `<p class="meta">${escapeHtml(dateStr)} · ${escapeHtml(ev.government || "")} · ${escapeHtml(ev.category)}</p>` +
-    `<dl>` +
-      `<dt>전환 정도</dt><dd>${escapeHtml(String(ev.direction_shift))} / 5</dd>` +
-      `<dt>정책 영향력</dt><dd>${escapeHtml(String(ev.impact))} / 5</dd>` +
-    `</dl>` +
+    scoresHtml +
     `<h3>개요</h3>` +
     `<p>${escapeHtml(ev.summary || "")}</p>` +
     linkedLawsHtml;
@@ -1348,9 +1354,12 @@ async function main() {
     return;
   }
 
+  // 공개용(_deploy) 모드 감지: <body data-mode="deploy"> 면 _deploy 데이터 로드
+  const isDeploy = document.body.dataset.mode === "deploy";
+
   let data;
   try {
-    data = await loadAllData();
+    data = await loadAllData({ deploy: isDeploy });
   } catch (err) {
     console.error("[app] 데이터 로드 실패", err);
     return;

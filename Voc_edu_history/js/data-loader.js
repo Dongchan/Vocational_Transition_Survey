@@ -263,13 +263,21 @@ function validateEvents(events, lawIdSet) {
 /**
  * 메인 진입점. JSON 3종을 병렬 로드하고 검증한 뒤 반환한다.
  *
+ * @param {{ deploy?: boolean }} [options]
+ *   deploy=true: 공개용 policy_events_deploy.json 로드 (direction_shift·impact 제거본).
+ *   laws/relations 에는 점수가 없으므로 두 모드 모두 동일 파일 사용.
  * @returns {Promise<{ laws: Array, relations: Array, events: Array }>}
  */
-export async function loadAllData() {
+export async function loadAllData(options = {}) {
+  const deploy = options.deploy === true;
+  const eventsPath = deploy
+    ? `${DATA_BASE}/policy_events_deploy.json`
+    : `${DATA_BASE}/policy_events.json`;
+
   const [laws, relations, events] = await Promise.all([
     fetchJsonArray(`${DATA_BASE}/laws.json`),
     fetchJsonArray(`${DATA_BASE}/relations.json`),
-    fetchJsonArray(`${DATA_BASE}/policy_events.json`),
+    fetchJsonArray(eventsPath),
   ]);
 
   const lawsOk = validateLaws(laws);

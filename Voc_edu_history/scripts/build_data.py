@@ -2,13 +2,19 @@
 Voc_edu_history 데이터 빌드 스크립트.
 
 입력: Events/*.md frontmatter + Korean Law MCP 응답(메모 형태로 본 스크립트 내 LAW_REGISTRY에 박힘)
-출력: data/laws.json, data/relations.json, data/policy_events.json
+출력:
+  기본:      data/laws.json, data/relations.json, data/policy_events.json
+  --deploy:  추가로 data/policy_events_deploy.json (direction_shift·impact 제거)
 
 원칙:
 - verified=True: Korean Law MCP search_law 응답으로 mst/law_id 확보된 법령
 - verified=False: 폐지 법령 등 MCP 현행 DB에 없는 항목. 출처는 Events MD에 명시된 법률 번호·공포일
 - 관계(relations)는 Events MD 본문에 명시적으로 언급된 것만 포함. 추정 금지.
+- 공개용(_deploy) 산출은 임의로 부여된 점수(전환 정도·정책 영향력)만 제거.
+  file 필드는 relations.json의 event 참조 키로 쓰이므로 유지.
+  laws/relations에는 점수 없으므로 공유.
 """
+import argparse
 import json
 import os
 import re
@@ -687,7 +693,25 @@ def validate() -> list:
     return warnings
 
 
+def strip_for_deploy(events: list) -> list:
+    """공개용 정책 이벤트 사본 생성.
+
+    제거 대상:
+      - direction_shift, impact: 임의로 부여된 점수. 외부 공개 금지.
+    유지 대상(전부):
+      - file: relations.json 에서 event 참조 키로 쓰이므로 필수. UI 미노출은 app.js 가드로 보장.
+      - year/date/title/category/government/law_ids/summary
+    """
+    OMIT = {"direction_shift", "impact"}
+    return [{k: v for k, v in ev.items() if k not in OMIT} for ev in events]
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Voc_edu_history 데이터 빌드")
+    parser.add_argument("--deploy", action="store_true",
+                        help="공개용 _deploy 산출(policy_events_deploy.json)도 함께 생성")
+    args = parser.parse_args()
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     warnings = validate()
@@ -713,6 +737,13 @@ def main():
     print(f"laws.json:          {len(LAW_REGISTRY)} laws ({verified_count} verified, {len(LAW_REGISTRY)-verified_count} unverified)")
     print(f"relations.json:     {len(RELATIONS)} edges")
     print(f"policy_events.json: {len(events)} events")
+
+    if args.deploy:
+        deploy_events = strip_for_deploy(events)
+        (DATA_DIR / "policy_events_deploy.json").write_text(
+            json.dumps(deploy_events, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"policy_events_deploy.json: {len(deploy_events)} events (direction_shift·impact 제거)")
+
     print(f"\nOutput: {DATA_DIR}")
 
 
