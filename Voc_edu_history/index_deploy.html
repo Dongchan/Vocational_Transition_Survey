@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>한국 직업교육훈련 정책사 — 법령 흐름</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260520f" />
+  <link rel="stylesheet" href="./css/style.css?v=20260520h" />
 </head>
 <body data-mode="deploy">
   <header class="site-header">
@@ -152,6 +152,16 @@
 
         <!-- 다이어그램 내보내기 -->
         <div class="export-actions" role="group" aria-label="다이어그램 내보내기">
+          <button type="button" id="toggle-event-labels" class="export-btn icon-btn"
+                  aria-label="이벤트명 라벨 표시 토글" aria-pressed="false"
+                  title="이벤트명 라벨 표시 / 숨김">
+            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+              <polygon points="6,19 6.95,21.4 9.5,21.55 7.5,23.2 8.15,25.7 6,24.4 3.85,25.7 4.5,23.2 2.5,21.55 5.05,21.4"
+                       fill="#D55E00" />
+              <line x1="9" y1="17" x2="22" y2="4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="12" y1="14" x2="20" y2="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
           <button type="button" id="export-png" class="export-btn icon-btn"
                   aria-label="PNG으로 다운로드 (300dpi)" title="PNG 다운로드 (300dpi)">
             <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
@@ -211,6 +221,6 @@
     </div>
   </footer>
 
-  <script type="module" src="./js/app.js?v=20260520d"></script>
+  <script type="module" src="./js/app.js?v=20260520h"></script>
 </body>
 </html>

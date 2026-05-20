@@ -28,7 +28,7 @@ import {
   eventsByLawId,
   indexRelations,
 } from "./data-loader.js?v=20260520b";
-import { setupExportButtons } from "./export.js?v=20260520d";
+import { setupExportButtons } from "./export.js?v=20260520h";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -621,6 +621,9 @@ function renderMilestones(svg, layout, width, ctx) {
 
 function renderEvents(svg, events, layout, width, ctx) {
   const g = el("g", { class: "events-layer" });
+  // 라벨 별도 그룹: SVG data-event-labels 속성으로 CSS 가시성 토글.
+  // 내보내기(PNG/SVG) 시 export.js 가 클론에 data-event-labels="on" 강제.
+  const labelG = el("g", { class: "event-labels" });
   const orphanYByCat = new Map();
   for (const o of layout.orphanRows) orphanYByCat.set(o.category, o.y);
 
@@ -684,9 +687,25 @@ function renderEvents(svg, events, layout, width, ctx) {
     });
 
     g.appendChild(star);
+
+    // 라벨: 마커 위 10px, -30° 회전 (우상단 방향, 위로 솟는 높이를 시간축 침범 회피 수준으로 억제)
+    if (ev.short_label) {
+      const lblX = cx;
+      const lblY = cy - 14 - 10;
+      const lbl = el("text", {
+        x: lblX,
+        y: lblY,
+        class: "event-label",
+        "text-anchor": "start",
+        transform: `rotate(-30 ${lblX} ${lblY})`,
+      });
+      lbl.textContent = ev.short_label;
+      labelG.appendChild(lbl);
+    }
   });
 
   svg.appendChild(g);
+  svg.appendChild(labelG);
 }
 
 /* ============================================================
@@ -1385,6 +1404,8 @@ async function main() {
   svg.setAttribute("width", String(SVG_WIDTH));
   svg.setAttribute("height", String(layout.totalHeight));
   svg.setAttribute("viewBox", `0 0 ${SVG_WIDTH} ${layout.totalHeight}`);
+  // 이벤트 라벨 토글 디폴트 OFF (탐색 시 깔끔). 내보내기 시 export.js 가 강제 ON.
+  svg.setAttribute("data-event-labels", "off");
 
   // 기존 자식 제거 (재호출 안전)
   while (svg.firstChild) svg.removeChild(svg.firstChild);

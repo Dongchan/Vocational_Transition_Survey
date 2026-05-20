@@ -46,6 +46,10 @@ const EXPORT_STYLE_CSS = `
   .edge.edge-branch .edge-endpoint-end { display: none; }
   .law-label { dominant-baseline: middle; }
   .law-label tspan { font-size: 15px; }
+  /* 내보내기 클론은 data-event-labels="on" 강제이므로 라벨 무조건 표시. */
+  svg[data-event-labels="on"] .event-labels { display: inline; }
+  svg:not([data-event-labels="on"]) .event-labels { display: none; }
+  .event-label { font-size: 13px; fill: #555555; pointer-events: none; }
 `;
 
 /**
@@ -54,11 +58,13 @@ const EXPORT_STYLE_CSS = `
  * - 흰색 배경 사각형 prepend (PNG 인쇄 가독성)
  * - <style> 블록 prepend (CSS 변수·엣지 룰)
  * - hit-area path 는 display:none 으로 시각 출력에서 제외
+ * - 이벤트 라벨은 화면 토글과 무관하게 강제 ON (인쇄 산출물의 정보 가치 우선)
  */
 function buildExportSvg(srcSvg) {
   const clone = srcSvg.cloneNode(true);
   clone.setAttribute("xmlns", SVG_NS);
   clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  clone.setAttribute("data-event-labels", "on");
 
   const width = parseFloat(clone.getAttribute("width")) || srcSvg.clientWidth;
   const height = parseFloat(clone.getAttribute("height")) || srcSvg.clientHeight;
@@ -245,6 +251,17 @@ async function exportPngFile(srcSvg, dpi = 300) {
 export function setupExportButtons(srcSvg, { dpi = 300 } = {}) {
   const svgBtn = document.getElementById("export-svg");
   const pngBtn = document.getElementById("export-png");
+  const labelBtn = document.getElementById("toggle-event-labels");
+
+  // 이벤트명 라벨 토글: SVG data-event-labels 속성 + 버튼 aria-pressed 동기화
+  if (labelBtn) {
+    labelBtn.addEventListener("click", () => {
+      const on = srcSvg.getAttribute("data-event-labels") === "on";
+      const next = !on;
+      srcSvg.setAttribute("data-event-labels", next ? "on" : "off");
+      labelBtn.setAttribute("aria-pressed", String(next));
+    });
+  }
 
   // 아이콘 버튼이라 textContent 교체 불가 → disabled + aria-busy 만 토글.
   // CSS 가 :disabled / [aria-busy=true] 상태에 cursor·opacity 로 시각 피드백.

@@ -638,6 +638,17 @@ def extract_frontmatter(content: str) -> dict:
     }
 
 
+def filename_to_short_label(fn: str) -> str:
+    """파일명에서 다이어그램 라벨용 짧은 식별자 추출.
+    "1963_산업교육진흥법.md" → "산업교육진흥법"
+    매칭 실패 시 확장자만 제거한 원본 반환.
+    """
+    m = re.match(r"^\d+_(.+?)\.md$", fn)
+    if m:
+        return m.group(1)
+    return fn[:-3] if fn.endswith(".md") else fn
+
+
 def build_policy_events() -> list:
     events = []
     for fn in sorted(os.listdir(EVENTS_DIR)):
@@ -650,6 +661,7 @@ def build_policy_events() -> list:
         law_ids = EVENT_LAW_MAP.get(fn, [])
         events.append({
             "file": fn,
+            "short_label": filename_to_short_label(fn),
             "year": fm.get("year"),
             "date": fm.get("date"),
             "title": fm.get("title"),

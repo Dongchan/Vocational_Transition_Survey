@@ -320,6 +320,19 @@ button {
   cursor: progress;
 }
 
+/* 토글 버튼 ON 상태 — aria-pressed=true 일 때 강조 */
+.export-btn.icon-btn[aria-pressed="true"] {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: #FFFFFF;
+}
+.export-btn.icon-btn[aria-pressed="true"]:hover:not(:disabled),
+.export-btn.icon-btn[aria-pressed="true"]:focus-visible:not(:disabled) {
+  background: #333333;
+  border-color: #333333;
+  color: #FFFFFF;
+}
+
 /* 메인 캔버스 --------------------------------------------------------- */
 
 .main-canvas {
@@ -345,6 +358,18 @@ button {
 /* SVG 내부 도형 기본 (viz-engineer가 확장 가능) */
 #timeline-svg .track-bar {
   cursor: pointer;
+}
+
+/* 정책 이벤트 라벨 — 디폴트 숨김, [data-event-labels="on"] 일 때만 표시.
+ * 내보내기(PNG/SVG) 시에는 export.js 가 클론에 data-event-labels="on" 강제. */
+#timeline-svg .event-labels { display: none; }
+#timeline-svg[data-event-labels="on"] .event-labels { display: inline; }
+
+.event-label {
+  font-size: 13px;
+  fill: var(--text-secondary);
+  pointer-events: none;
+  /* 회전 변환은 인라인 transform 으로 마커별 각도 지정 */
 }
 
 #timeline-svg .milestone,
