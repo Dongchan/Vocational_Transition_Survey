@@ -28,7 +28,7 @@ import {
   eventsByLawId,
   indexRelations,
 } from "./data-loader.js?v=20260520b";
-import { setupExportButtons } from "./export.js?v=20260520h";
+import { setupExportButtons } from "./export.js?v=20260520j";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -56,7 +56,7 @@ const SVG_WIDTH = 1900;
 // 트랙 레이아웃 상수
 const HEADER_ROW_H = 30;     // 카테고리 헤더 행 높이
 const LAW_ROW_H = 48;        // 법령 트랙 행 높이
-const GROUP_GAP = 16;        // 카테고리 그룹 사이 여백
+const GROUP_GAP = 28;        // 카테고리 그룹 사이 여백 (회전 라벨이 위 카테고리로 솟는 충돌 완화)
 const TOP_AXIS_H = 60;       // 상단 시간축 영역 높이
 const BAR_HEIGHT = 16;       // 트랙 막대 높이
 
@@ -688,7 +688,7 @@ function renderEvents(svg, events, layout, width, ctx) {
 
     g.appendChild(star);
 
-    // 라벨: 마커 위 10px, -30° 회전 (우상단 방향, 위로 솟는 높이를 시간축 침범 회피 수준으로 억제)
+    // 라벨: 마커 위 10px, -30° 회전 (위로 솟음 vs 가로 폭 트레이드오프 균형점)
     if (ev.short_label) {
       const lblX = cx;
       const lblY = cy - 14 - 10;
