@@ -28,6 +28,7 @@ import {
   eventsByLawId,
   indexRelations,
 } from "./data-loader.js?v=20260520b";
+import { setupExportButtons } from "./export.js?v=20260520d";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -1400,6 +1401,10 @@ async function main() {
 
   // 필터 셋업
   setupFilters(svg, layout, ctx);
+
+  // 내보내기 버튼(헤더의 #export-svg / #export-png) 핸들러 바인딩.
+  // 렌더 완료 후 호출해야 width/height·자식 트리가 확정된 상태에서 캡처됨.
+  setupExportButtons(svg, { dpi: 300 });
 
   // 사이드 패널 닫기 (버튼 + ESC)
   ensurePanel();

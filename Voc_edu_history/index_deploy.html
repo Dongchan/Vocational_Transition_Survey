@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>한국 직업교육훈련 정책사 — 법령 흐름</title>
-  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/style.css?v=20260520f" />
 </head>
 <body data-mode="deploy">
   <header class="site-header">
@@ -97,8 +97,8 @@
 
       <!-- 필터 영역 -->
       <section class="filters" aria-label="필터">
-        <fieldset class="filter-group" id="filter-category-group">
-          <legend class="filter-legend">카테고리 표시</legend>
+        <div class="filter-group" id="filter-category-group" role="group" aria-labelledby="filter-category-legend">
+          <div class="filter-legend" id="filter-category-legend">카테고리 표시</div>
           <label class="filter-label">
             <input type="checkbox" class="filter-category" data-category="중등직업교육" checked />
             <span class="filter-swatch" style="background: var(--cat-secondary-voc);"></span>
@@ -124,10 +124,10 @@
             <span class="filter-swatch" style="background: var(--cat-qualification);"></span>
             직무능력 및 자격체계
           </label>
-        </fieldset>
+        </div>
 
-        <fieldset class="filter-group" id="filter-relation-group">
-          <legend class="filter-legend">관계 유형 표시</legend>
+        <div class="filter-group" id="filter-relation-group" role="group" aria-labelledby="filter-relation-legend">
+          <div class="filter-legend" id="filter-relation-legend">관계 유형 표시</div>
           <label class="filter-label">
             <input type="checkbox" class="filter-relation" data-relation="succession" checked />
             <span class="filter-line" style="background: var(--edge-succession);"></span>
@@ -148,7 +148,31 @@
             <span class="filter-line" style="background: var(--edge-branch);"></span>
             분기
           </label>
-        </fieldset>
+        </div>
+
+        <!-- 다이어그램 내보내기 -->
+        <div class="export-actions" role="group" aria-label="다이어그램 내보내기">
+          <button type="button" id="export-png" class="export-btn icon-btn"
+                  aria-label="PNG으로 다운로드 (300dpi)" title="PNG 다운로드 (300dpi)">
+            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+              <rect x="5" y="2" width="18" height="12" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <text x="14" y="11" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">PNG</text>
+              <path d="M14 16 v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M10 19 l4 4 l4 -4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 26 h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" id="export-svg" class="export-btn icon-btn"
+                  aria-label="SVG로 다운로드" title="SVG 다운로드">
+            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+              <rect x="5" y="2" width="18" height="12" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <text x="14" y="11" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">SVG</text>
+              <path d="M14 16 v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M10 19 l4 4 l4 -4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 26 h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
       </section>
     </div>
   </header>
@@ -187,6 +211,6 @@
     </div>
   </footer>
 
-  <script type="module" src="./js/app.js?v=20260520b"></script>
+  <script type="module" src="./js/app.js?v=20260520d"></script>
 </body>
 </html>

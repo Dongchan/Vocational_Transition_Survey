@@ -131,16 +131,23 @@ button {
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 12px 24px;
   padding: 12px 16px;
   background: #F5F5F5;
   border: 1px solid var(--border);
   border-radius: 6px;
   margin-bottom: 14px;
+  align-items: flex-start;  /* 위 행 두 그룹이 stretch 로 늘어나지 않게 */
 }
 
 .legend-group {
   min-width: 200px;
+}
+
+/* 관계 엣지 레전드는 다음 줄로 분리, 가로 한 줄로 표시.
+ * aria-labelledby 셀렉터로 마크업 변경 없이 분리. */
+.legend-group[aria-labelledby="legend-edge-title"] {
+  flex-basis: 100%;
 }
 
 .legend-title {
@@ -173,14 +180,15 @@ button {
   margin-left: 4px;
 }
 
-/* 엣지 범례 항목은 세로 정렬 — 라벨 본문(굵게) + detail이 같은 줄에 길어질 수 있어 wrap 허용 */
+/* 엣지 범례 항목은 가로 한 줄. 4개 항목이 페이지 폭 안에서 wrap 허용. */
 .legend-list.legend-list-edge {
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 6px 22px;
+  align-items: baseline;
 }
 .legend-list.legend-list-edge .legend-item {
   align-items: baseline;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .legend-icon {
@@ -221,11 +229,14 @@ button {
   background: var(--bg-panel);
 }
 
+/* fieldset/legend 가 아닌 일반 div + role="group" 구조이므로
+ * legend 텍스트가 박스 첫 줄 전체를 차지 → 박스 윗 테두리가 다른 박스와 시각 정렬. */
 .filter-legend {
   font-size: var(--font-size-small);
   font-weight: 700;
   color: var(--text-secondary);
-  padding: 0 6px;
+  width: 100%;
+  margin-bottom: 2px;
 }
 
 .filter-label {
@@ -260,6 +271,53 @@ button {
   width: 20px;
   height: 3px;
   flex-shrink: 0;
+}
+
+/* 다이어그램 내보내기 (filters 안 아이콘 버튼) ------------------------ */
+
+/* 박스 자체는 .filter-group 과 동일한 패딩·테두리·배경 으로 시각 통일.
+ * align-self 미지정 → .filters 의 flex stretch 가 동작해 관계 유형 그룹과 같은 높이. */
+.export-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.export-btn.icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  transition: background 0.12s ease-out, border-color 0.12s ease-out, color 0.12s ease-out;
+}
+
+.export-btn.icon-btn svg {
+  display: block;
+}
+
+.export-btn.icon-btn:hover:not(:disabled),
+.export-btn.icon-btn:focus-visible:not(:disabled) {
+  background: #F0F0F0;
+  border-color: var(--text-secondary);
+  color: #000000;
+  outline: none;
+}
+
+.export-btn.icon-btn:disabled,
+.export-btn.icon-btn[aria-busy="true"] {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 /* 메인 캔버스 --------------------------------------------------------- */

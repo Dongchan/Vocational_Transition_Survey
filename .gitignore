@@ -2,6 +2,19 @@
 Events/
 Screenshot/
 
+# 작업 메모·계획·이력 (메인은 로컬 전용, 공개는 deploy 한정)
+Law_map_workflow.md
+Plan_Summary.md
+WorkingHistory.md
+Voc_edu_history/Plan_History_analysis.md
+
+# 메인(편집) 페이지·데이터 — 공개는 _deploy 만
+Voc_edu_history/index.html
+Voc_edu_history/data/policy_events.json
+
+# 루트 작업·검증 스크린샷 (재생성 가능)
+/*.png
+
 # 작업 부산물
 *.log
 *.tmp
