@@ -1099,8 +1099,12 @@ const MILESTONE_ENACTED_R = 8;
  *
  * n<=1이면 단일 화살표 → 기존 60° 진입 유지.
  * n>1이면 화살촉을 부채꼴로 분산해 수렴 마디(예: 1997)에서 화살촉 겹침 해소.
+ *
+ * @param {number} [entrySign]  끝점을 마디 어느 쪽에 둘지. +1=우측(2시), -1=좌측(10·11시).
+ *   미지정(null)이면 dxSign(진행 방향 쪽=먼쪽)을 사용. 소스가 마디와 거의 같은 높이에서 수평
+ *   접근하는 경우만 호출부에서 -dxSign(근측)을 넘겨 마디를 지나치지 않고 가까운 쪽으로 진입.
  */
-function computeArrowEndPoint(xTo, yTo, dxSign, k = 0, n = 1) {
+function computeArrowEndPoint(xTo, yTo, dxSign, k = 0, n = 1, entrySign = null) {
   // === USER FILL START ===
   const r = MILESTONE_ENACTED_R;
   let alpha;
@@ -1118,11 +1122,12 @@ function computeArrowEndPoint(xTo, yTo, dxSign, k = 0, n = 1) {
   }
   const sinA = Math.sin(alpha);
   const cosA = Math.cos(alpha);
-  const xEnd = xTo + dxSign * r * sinA;
+  const s = (entrySign === null) ? dxSign : entrySign; // 진입 측(±1) — 기본은 진행 방향(먼쪽)
+  const xEnd = xTo + s * r * sinA;
   const yEnd = yTo - r * cosA;
   // 화살촉이 마디 원 중심을 향하도록 진입 방향(= 끝점→중심) 단위 벡터도 함께 반환.
   // c2 = xEnd - V·nx, yEnd - V·ny 형태로 쓰면 path 마지막 접선이 마디 표면 접선과 수직.
-  const nx = -dxSign * sinA;
+  const nx = -s * sinA;
   const ny = cosA;
   return { xEnd, yEnd, nx, ny };
   // === USER FILL END ===
@@ -1206,6 +1211,8 @@ function renderEdges(svg, relations, layout, width, ctx) {
     let xFrom, yFrom, xTo, yTo;
     const fromLaw = (fromKind === "law") ? ctx.lawsById.get(rel.from) : null;
     const toLaw = (toKind === "law") ? ctx.lawsById.get(rel.to) : null;
+    // 방향성(화살촉) 엣지 — 끝점이 to 법령의 enacted ● 마디에 꽂힘. 좌표 산출 단계에서 이미 필요.
+    const directional = rel.type === "succession" || rel.type === "basis" || rel.type === "branch";
 
     if (fromKind === "law" && toKind === "law") {
       yFrom = layout.trackYByLawId.get(rel.from);
@@ -1231,7 +1238,12 @@ function renderEdges(svg, relations, layout, width, ctx) {
         yTo = ec.y;
       } else {
         yTo = layout.trackYByLawId.get(rel.to);
-        xTo = pickLawSideX(rel, toLaw, width);
+        // 방향성 화살촉은 to 법령의 enacted ● 마디 중심에 꽂혀야 축이 원 중심을 통과(접선과 수직).
+        // pickLawSideX 의 yearToX(rel.year) 는 연초 기준이라 연중·연말 시행 법령의 ●(dateToX(enacted))와
+        // 어긋남 → law→law 경로(computeEdgeXEndpoints 의 toEnactedX)와 동일하게 dateToX(enacted)로 정렬.
+        xTo = (directional && toLaw && toLaw.enacted)
+          ? dateToX(toLaw.enacted, width)
+          : pickLawSideX(rel, toLaw, width);
       }
     }
 
@@ -1243,8 +1255,7 @@ function renderEdges(svg, relations, layout, width, ctx) {
     // 방향성 엣지(succession·basis·branch)의 끝점은 to 트랙 ● 마디 정수리 부근(12시~1시)으로 진입.
     // computeArrowEndPoint로 마디 경계선 위 좌표를 받아 c2 제어점을 끝점 바로 위로 끌어올려
     // 마지막 접선이 거의 수직이 되도록 함 — 화살촉이 마디 위쪽에서 아래로 꽂힘.
-    // reference는 무방향이라 양 끝 원 유지·수평 진입 그대로.
-    const directional = rel.type === "succession" || rel.type === "basis" || rel.type === "branch";
+    // reference는 무방향이라 양 끝 원 유지·수평 진입 그대로. (directional 은 위에서 정의됨)
     const dxRaw = xTo - xFrom;
     const dxSign = dxRaw >= 0 ? 1 : -1;
 
@@ -1255,7 +1266,11 @@ function renderEdges(svg, relations, layout, width, ctx) {
     // 끝점 진입 로직은 to가 law(마디 ●)일 때만 — event(★) 끝점은 별 중심 그대로 사용
     if (directional && toKind === "law") {
       const fan = fanByIdx.get(idx) || { k: 0, n: 1 };
-      const ep = computeArrowEndPoint(xTo, yTo, dxSign, fan.k, fan.n);
+      // 소스가 마디와 거의 같은 높이(한 행 미만, |Δy|<24)에서 수평 접근하면 먼쪽(2시) 진입은
+      // 마디를 지나쳐 위로 감았다 들어와 어색함 → 근측(-dxSign, 10·11시)으로 진입.
+      // law→law 는 항상 한 행 이상 떨어져(|Δy|≥40) 영향 없고, 수직 낙차 큰 이벤트 엣지도 제외됨.
+      const entrySign = (Math.abs(yTo - yFrom) < 24) ? -dxSign : null;
+      const ep = computeArrowEndPoint(xTo, yTo, dxSign, fan.k, fan.n, entrySign);
       xEnd = ep.xEnd;
       yEnd = ep.yEnd;
       nx = ep.nx;
@@ -1679,18 +1694,32 @@ function applyFilters(svg, ctx) {
     node.style.display = filterState.activeCategories.has(cat) ? "" : "none";
   });
 
-  // 엣지: 관계 유형 + from·to 양쪽 카테고리 모두 활성일 때만 표시
+  // 엣지: 관계 유형 + from·to 양쪽 카테고리 모두 활성일 때만 표시.
+  //
+  // 엔드포인트 id 는 law id(예: "higher_education_act") 또는 event file
+  // (예: "1995_531교육개혁.md") 둘 다 가능. lawsById 만으로 해석하면
+  // event 측이 undefined → 모든 event↔law 엣지가 숨겨진다(531교육개혁 화살표 소실 버그).
+  //
+  // 엔드포인트 id 의 카테고리를 law·event 양쪽에서 해석. law 우선 조회 →
+  // 없으면 event 조회 → 둘 다 없으면 null(그 엣지는 catOk=false 로 숨김).
+  const endpointCategory = (id) => {
+    const law = ctx.lawsById.get(id);
+    if (law) return law.category;
+    const ev = ctx.eventsByFile.get(id);
+    if (ev) return ev.category;
+    return null;
+  };
+
   const edges = svg.querySelectorAll(".edge");
   edges.forEach((edge) => {
     const type = edge.getAttribute("data-relation-type");
-    const fromId = edge.getAttribute("data-from");
-    const toId = edge.getAttribute("data-to");
-    const fromLaw = ctx.lawsById.get(fromId);
-    const toLaw = ctx.lawsById.get(toId);
+    const fromCat = endpointCategory(edge.getAttribute("data-from"));
+    const toCat = endpointCategory(edge.getAttribute("data-to"));
     const typeOk = filterState.activeRelations.has(type);
-    const catOk = fromLaw && toLaw
-      && filterState.activeCategories.has(fromLaw.category)
-      && filterState.activeCategories.has(toLaw.category);
+    // 규칙: 양끝 카테고리가 모두 존재하고 둘 다 활성일 때만 표시.
+    const catOk = !!fromCat && !!toCat
+      && filterState.activeCategories.has(fromCat)
+      && filterState.activeCategories.has(toCat);
     edge.style.display = (typeOk && catOk) ? "" : "none";
   });
 }
@@ -1764,6 +1793,9 @@ async function main() {
     events,
     lawsById: new Map(laws.map((l) => [l.id, l])),
     eventsByLaw: eventsByLawId(events),
+    // 엣지의 data-from/data-to 는 law id 또는 event file 둘 다 올 수 있음.
+    // 필터에서 event 엔드포인트의 category 를 해석하려면 file→event 조회가 필요.
+    eventsByFile: new Map(events.map((e) => [e.file, e])),
     relationIndex: indexRelations(relations),
   };
 
