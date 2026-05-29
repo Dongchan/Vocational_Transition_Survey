@@ -155,6 +155,33 @@ function stripMd(s) {
 }
 
 /**
+ * 엣지 엔드포인트(rel.from/rel.to)의 사용자 표시명 산출.
+ *
+ * 내부 키(law id 또는 event file)는 그대로 두고 표시명만 데이터에서 끌어온다:
+ *   - law 측    → lawsById.get(id).name_kr
+ *   - event 측  → eventsByFile.get(id).short_label (예: "5·31교육개혁")
+ *   - 둘 다 미해결 → stripMd(id) fallback (원시 키 노출 최소화)
+ *
+ * 라벨 문자열은 하드코딩하지 않음 — short_label(데이터)이 바뀌면 전 표시 경로에 반영됨.
+ *
+ * @param {string} id     rel.from 또는 rel.to (law id 또는 event file)
+ * @param {string} kind   "law" | "event" (rel.from_kind/to_kind, 기본 "law")
+ * @param {object} ctx    lawsById·eventsByFile 보유 컨텍스트
+ * @returns {string}
+ */
+function endpointDisplayName(id, kind, ctx) {
+  if (kind === "event") {
+    const ev = ctx && ctx.eventsByFile && ctx.eventsByFile.get(id);
+    if (ev && ev.short_label) return ev.short_label;
+    if (ev && ev.title) return ev.title;
+    return stripMd(id);
+  }
+  const law = ctx && ctx.lawsById && ctx.lawsById.get(id);
+  if (law && law.name_kr) return law.name_kr;
+  return stripMd(id);
+}
+
+/**
  * 텍스트를 안전하게 escape (사이드 패널 HTML 주입용)
  */
 function escapeHtml(s) {
@@ -1377,7 +1404,7 @@ function renderEdges(svg, relations, layout, width, ctx) {
     });
 
     const title = el("title");
-    title.textContent = `${RELATION_LABEL[rel.type] || rel.type} (${rel.year}) ${fromLaw ? fromLaw.name_kr : stripMd(rel.from)} → ${toLaw ? toLaw.name_kr : stripMd(rel.to)}`;
+    title.textContent = `${RELATION_LABEL[rel.type] || rel.type} (${rel.year}) ${endpointDisplayName(rel.from, fromKind, ctx)} → ${endpointDisplayName(rel.to, toKind, ctx)}`;
     group.appendChild(title);
     group.appendChild(hitPath);
     group.appendChild(haloPath);
@@ -1477,11 +1504,16 @@ function showEventTooltip(ev, evt) {
  * 모든 시점 텍스트는 laws.json의 enacted·abolished와 relations.json의 year 만 사용.
  * LLM 해석 없음.
  *
+ * 이벤트 엔드포인트(from_kind/to_kind === "event")의 표시명은 short_label("5·31교육개혁")을
+ * 쓴다 — 원시 키("1995_531교육개혁") 노출 방지. 내부 키 핸들링은 불변(rel.from/to 그대로).
+ *
  * @returns {{fromText: string, toText: string, arrow: string}}
  */
-function describeEdgeEndpoints(rel, fromLaw, toLaw) {
-  const fromName = fromLaw ? fromLaw.name_kr : stripMd(rel.from);
-  const toName = toLaw ? toLaw.name_kr : stripMd(rel.to);
+function describeEdgeEndpoints(rel, fromLaw, toLaw, ctx) {
+  const fromKind = rel.from_kind || "law";
+  const toKind = rel.to_kind || "law";
+  const fromName = endpointDisplayName(rel.from, fromKind, ctx);
+  const toName = endpointDisplayName(rel.to, toKind, ctx);
   const yr = String(rel.year || "");
   let fromText;
   let toText;
@@ -1530,7 +1562,7 @@ function showEdgeTooltip(rel, ctx, evt) {
   const fromLaw = ctx.lawsById.get(rel.from);
   const toLaw = ctx.lawsById.get(rel.to);
   const label = RELATION_LABEL[rel.type] || rel.type;
-  const { fromText, toText, arrow } = describeEdgeEndpoints(rel, fromLaw, toLaw);
+  const { fromText, toText, arrow } = describeEdgeEndpoints(rel, fromLaw, toLaw, ctx);
   const html =
     `<strong>${escapeHtml(label)} (${escapeHtml(String(rel.year))})</strong>` +
     `<div class="tooltip-meta">${escapeHtml(fromText)} ${escapeHtml(arrow)} ${escapeHtml(toText)}</div>`;
@@ -1659,8 +1691,10 @@ function openEdgePanel(rel, ctx) {
   const fromLaw = ctx.lawsById.get(rel.from);
   const toLaw = ctx.lawsById.get(rel.to);
   const label = RELATION_LABEL[rel.type] || rel.type;
-  const { fromText, toText, arrow } = describeEdgeEndpoints(rel, fromLaw, toLaw);
-  const title = `관계: ${fromLaw ? fromLaw.name_kr : stripMd(rel.from)} ${arrow} ${toLaw ? toLaw.name_kr : stripMd(rel.to)}`;
+  const { fromText, toText, arrow } = describeEdgeEndpoints(rel, fromLaw, toLaw, ctx);
+  const fromKind = rel.from_kind || "law";
+  const toKind = rel.to_kind || "law";
+  const title = `관계: ${endpointDisplayName(rel.from, fromKind, ctx)} ${arrow} ${endpointDisplayName(rel.to, toKind, ctx)}`;
   const html =
     `<p class="meta">${escapeHtml(String(rel.year))} · 유형 ${escapeHtml(label)}</p>` +
     `<dl>` +

@@ -638,11 +638,22 @@ def extract_frontmatter(content: str) -> dict:
     }
 
 
+# 파일명→표시 라벨 오버라이드. 자동 생성 규칙으로는 표기할 수 없는
+# 라벨(가운뎃점·특수 약물 등)만 여기에 명시한다.
+# 키는 Events/ 파일명, 값은 다이어그램에 노출될 short_label.
+SHORT_LABEL_OVERRIDE = {
+    "1995_531교육개혁.md": "5·31교육개혁",  # 가운뎃점 U+00B7, 공백 없음
+}
+
+
 def filename_to_short_label(fn: str) -> str:
     """파일명에서 다이어그램 라벨용 짧은 식별자 추출.
     "1963_산업교육진흥법.md" → "산업교육진흥법"
+    오버라이드 맵에 있으면 그 값을, 없으면 자동 규칙을 적용.
     매칭 실패 시 확장자만 제거한 원본 반환.
     """
+    if fn in SHORT_LABEL_OVERRIDE:
+        return SHORT_LABEL_OVERRIDE[fn]
     m = re.match(r"^\d+_(.+?)\.md$", fn)
     if m:
         return m.group(1)
