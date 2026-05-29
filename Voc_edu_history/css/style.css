@@ -2,18 +2,34 @@
    한국 직업교육훈련 정책사 — 법령 흐름 (라이트 모드 단일 테마)
    ========================================================================== */
 
+/* Noto Sans KR self-host — 페이지 코퍼스 서브셋(오프라인, 외부 CDN 불요) */
+@font-face {
+  font-family: "Noto Sans KR";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/NotoSansKR-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans KR";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/NotoSansKR-700.woff2") format("woff2");
+}
+
 :root {
   /* 카테고리 — 색맹 친화 (Okabe-Ito 변형) */
   --cat-secondary-voc: #E69F00;        /* 중등직업교육 — 주황 */
   --cat-vocational-training: #0072B2;  /* 직업훈련 — 파랑 */
   --cat-higher-lifelong: #009E73;      /* 고등 및 평생직업교육 — 초록 */
   --cat-career: #CC79A7;               /* 진로교육 — 자홍 */
-  --cat-qualification: #56B4E9;        /* 직무능력 및 자격체계 — 하늘 */
+  --cat-qualification: #8FCDF0;        /* 직무능력 및 자격체계 — 하늘 (직업훈련 #0072B2와 대비 확보) */
 
   /* 관계 엣지 — 색·패턴·굵기로 4종 차별화 */
   --edge-succession: #000000;          /* 계승 — 검정 실선 */
   --edge-basis: #5E3C99;               /* 기반 — 보라 긴 점선 (카테고리 5색과 분리) */
-  --edge-reference: #888888;           /* 연관 — 회색 짧은 점선 */
+  --edge-reference: #5A5A5A;           /* 연관 — 회색 짧은 점선 (격자선 대비 가시화) */
   --edge-branch: #D55E00;              /* 분기 — 적주황 굵은 점선 (강조) */
 
   /* 배경·텍스트 */
@@ -144,11 +160,8 @@ button {
   min-width: 200px;
 }
 
-/* 관계 엣지 레전드는 다음 줄로 분리, 가로 한 줄로 표시.
- * aria-labelledby 셀렉터로 마크업 변경 없이 분리. */
-.legend-group[aria-labelledby="legend-edge-title"] {
-  flex-basis: 100%;
-}
+/* 관계 엣지 레전드는 핵심 라벨·line swatch만 유지(긴 설명은 footer로 이동).
+ * detail 제거로 폭이 축소되어 마디·카테고리 그룹과 같은 행에 흡수됨. */
 
 .legend-title {
   font-size: var(--font-size-small);
@@ -355,6 +368,11 @@ button {
   border-radius: 6px;
 }
 
+/* SVG 내부 텍스트 폰트 명시 — 상속과 동일 값이나 PNG/SVG 내보내기 클론에서도 보장 */
+#timeline-svg text {
+  font-family: var(--font-family-base);
+}
+
 /* SVG 내부 도형 기본 (viz-engineer가 확장 가능) */
 #timeline-svg .track-bar {
   cursor: pointer;
@@ -410,8 +428,8 @@ button {
 }
 #timeline-svg .edge.edge-reference .edge-line {
   stroke: var(--edge-reference);
-  stroke-dasharray: 2 4;        /* 짧은 점선 (dot 느낌) */
-  stroke-width: 1.5;
+  stroke-dasharray: 4 3;        /* 짧은 점선 (격자선과 구분) */
+  stroke-width: 1.8;
 }
 #timeline-svg .edge.edge-branch .edge-line {
   stroke: var(--edge-branch);
@@ -648,6 +666,16 @@ button {
   margin-bottom: 8px;
 }
 
+/* 두 번째 이후 footer 제목(자료 출처)은 위 블록과 간격 확보 */
+.footer-list + .footer-title {
+  margin-top: 16px;
+}
+
+/* 관계 유형 보조 설명 — 범례에서 이동한 기준 시점 목록 */
+.footer-list-relation {
+  margin-bottom: 4px;
+}
+
 .footer-list {
   padding-left: 18px;
   list-style: disc;
@@ -677,5 +705,16 @@ button {
 
   #page-title {
     font-size: 22px;
+  }
+}
+
+/* 모션 최소화 선호 사용자 대응 — 트랜지션·애니메이션 사실상 제거 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

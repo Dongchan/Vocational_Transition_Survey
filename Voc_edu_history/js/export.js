@@ -23,10 +23,10 @@ const EXPORT_STYLE_CSS = `
     --cat-vocational-training: #0072B2;
     --cat-higher-lifelong: #009E73;
     --cat-career: #CC79A7;
-    --cat-qualification: #56B4E9;
+    --cat-qualification: #8FCDF0;
     --edge-succession: #000000;
     --edge-basis: #5E3C99;
-    --edge-reference: #888888;
+    --edge-reference: #5A5A5A;
     --edge-branch: #D55E00;
     font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
   }
@@ -34,7 +34,7 @@ const EXPORT_STYLE_CSS = `
   .edge-line { fill: none; stroke-width: 1.8; }
   .edge.edge-succession .edge-line { stroke: var(--edge-succession); stroke-dasharray: 0; stroke-width: 1.8; }
   .edge.edge-basis .edge-line { stroke: var(--edge-basis); stroke-dasharray: 12 4; stroke-width: 1.8; }
-  .edge.edge-reference .edge-line { stroke: var(--edge-reference); stroke-dasharray: 2 4; stroke-width: 1.5; }
+  .edge.edge-reference .edge-line { stroke: var(--edge-reference); stroke-dasharray: 4 3; stroke-width: 1.8; }
   .edge.edge-branch .edge-line { stroke: var(--edge-branch); stroke-dasharray: 8 4; stroke-width: 2.4; }
   .edge-endpoint { stroke: #FFFFFF; stroke-width: 1; }
   .edge-endpoint-succession { fill: var(--edge-succession); }
@@ -46,10 +46,11 @@ const EXPORT_STYLE_CSS = `
   .edge.edge-branch .edge-endpoint-end { display: none; }
   .law-label { dominant-baseline: middle; }
   .law-label tspan { font-size: 15px; }
-  /* 내보내기 클론은 data-event-labels="on" 강제이므로 라벨 무조건 표시. */
-  svg[data-event-labels="on"] .event-labels { display: inline; }
-  svg:not([data-event-labels="on"]) .event-labels { display: none; }
+  /* 이벤트 라벨은 app.js render(true)(ON 레이아웃)에서 이미 생성되어 클론에 포함됨.
+     수평 라벨 + 리더라인. halo(흰 외곽선)는 인라인 style 로 라벨에 직접 지정됨. */
+  .event-labels { display: inline; }
   .event-label { font-size: 13px; fill: #555555; pointer-events: none; }
+  .event-leader { stroke: #9AA0A6; stroke-width: 1; }
 `;
 
 /**
@@ -248,33 +249,36 @@ async function exportPngFile(srcSvg, dpi = 300) {
  *
  * 버튼이 없으면(=구버전 HTML) 조용히 패스.
  */
-export function setupExportButtons(srcSvg, { dpi = 300 } = {}) {
+/**
+ * @param {SVGSVGElement} srcSvg
+ * @param {object} [opts]
+ * @param {number} [opts.dpi=300]
+ * @param {() => void} [opts.prepare]  캡처(클론·직렬화) 직전 동기 호출. 라벨 ON 레이아웃으로
+ *                                     재렌더해 라벨이 겹치지 않는 산출물을 만든다.
+ * @param {() => void} [opts.restore]  캡처 후 동기 호출. 캡처 전 화면 상태로 복원.
+ *
+ * 라벨 토글 버튼(#toggle-event-labels) 핸들러는 app.js 가 소유한다(재렌더 기반).
+ * 여기서는 export 버튼만 바인딩한다.
+ */
+export function setupExportButtons(srcSvg, { dpi = 300, prepare, restore } = {}) {
   const svgBtn = document.getElementById("export-svg");
   const pngBtn = document.getElementById("export-png");
-  const labelBtn = document.getElementById("toggle-event-labels");
-
-  // 이벤트명 라벨 토글: SVG data-event-labels 속성 + 버튼 aria-pressed 동기화
-  if (labelBtn) {
-    labelBtn.addEventListener("click", () => {
-      const on = srcSvg.getAttribute("data-event-labels") === "on";
-      const next = !on;
-      srcSvg.setAttribute("data-event-labels", next ? "on" : "off");
-      labelBtn.setAttribute("aria-pressed", String(next));
-    });
-  }
 
   // 아이콘 버튼이라 textContent 교체 불가 → disabled + aria-busy 만 토글.
   // CSS 가 :disabled / [aria-busy=true] 상태에 cursor·opacity 로 시각 피드백.
+  // prepare 로 ON 레이아웃 재렌더 → 캡처 → restore 로 복원. 폰트는 이미 로드됨(동기).
   const lockAndRun = async (btn, label, fn) => {
     if (!btn) return;
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
     try {
+      if (typeof prepare === "function") prepare();
       await fn();
     } catch (err) {
       console.error(`[export] ${label} 실패`, err);
       alert(`${label} 다운로드 실패: ${err.message}`);
     } finally {
+      if (typeof restore === "function") restore();
       btn.disabled = false;
       btn.removeAttribute("aria-busy");
     }

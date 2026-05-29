@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>한국 직업교육훈련 정책사 — 법령 흐름</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260520j" />
+  <link rel="stylesheet" href="./css/style.css?v=20260529g" />
 </head>
 <body data-mode="deploy">
   <header class="site-header">
@@ -64,7 +64,6 @@
                 <polygon points="22,2 27,5 22,8" fill="var(--edge-succession)" />
               </svg>
               <span>계승 (succession)</span>
-              <span class="legend-detail">폐지 시점 → 신법 제정 시점</span>
             </li>
             <li class="legend-item">
               <svg class="legend-icon" width="28" height="10" viewBox="0 0 28 10" aria-hidden="true">
@@ -72,16 +71,14 @@
                 <polygon points="22,2 27,5 22,8" fill="var(--edge-basis)" />
               </svg>
               <span>기반 (basis)</span>
-              <span class="legend-detail">관계 발생 시점 → 새 법령 제정 시점</span>
             </li>
             <li class="legend-item">
               <svg class="legend-icon" width="28" height="10" viewBox="0 0 28 10" aria-hidden="true">
                 <circle cx="3" cy="5" r="2.4" fill="var(--edge-reference)" />
-                <line x1="5" y1="5" x2="23" y2="5" stroke="var(--edge-reference)" stroke-width="1.5" stroke-dasharray="2 4" />
+                <line x1="5" y1="5" x2="23" y2="5" stroke="var(--edge-reference)" stroke-width="1.8" stroke-dasharray="4 3" />
                 <circle cx="25" cy="5" r="2.4" fill="var(--edge-reference)" />
               </svg>
               <span>연관 (reference)</span>
-              <span class="legend-detail">관계 발생 시점에 양 법령 수평 참조 (무방향)</span>
             </li>
             <li class="legend-item">
               <svg class="legend-icon" width="28" height="10" viewBox="0 0 28 10" aria-hidden="true">
@@ -89,7 +86,6 @@
                 <polygon points="22,2 27,5 22,8" fill="var(--edge-branch)" />
               </svg>
               <span>분기 (branch)</span>
-              <span class="legend-detail">폐지 시점 → 분할된 신법 제정 시점</span>
             </li>
           </ul>
         </div>
@@ -211,6 +207,14 @@
 
   <footer class="site-footer">
     <div class="footer-inner">
+      <h2 class="footer-title">관계 유형</h2>
+      <ul class="footer-list footer-list-relation">
+        <li>계승: 폐지 시점에서 신법 제정 시점으로 연결</li>
+        <li>기반: 관계 발생 시점에서 새 법령 제정 시점으로 연결</li>
+        <li>연관: 관계 발생 시점에 양 법령 수평 참조, 무방향</li>
+        <li>분기: 폐지 시점에서 분할된 신법 제정 시점으로 연결</li>
+      </ul>
+
       <h2 class="footer-title">자료 출처</h2>
       <ul class="footer-list">
         <li>법령 메타데이터: 법제처 Korean Law MCP <code>search_law</code>·<code>get_law_text</code> 검증 (검증 시점 2026-05-18)</li>
@@ -221,6 +225,6 @@
     </div>
   </footer>
 
-  <script type="module" src="./js/app.js?v=20260520j"></script>
+  <script type="module" src="./js/app.js?v=20260529g"></script>
 </body>
 </html>

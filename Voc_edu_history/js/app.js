@@ -28,7 +28,7 @@ import {
   eventsByLawId,
   indexRelations,
 } from "./data-loader.js?v=20260520b";
-import { setupExportButtons } from "./export.js?v=20260520j";
+import { setupExportButtons } from "./export.js?v=20260529g";
 
 /* ============================================================
  * 1. 상수 및 헬퍼
@@ -36,7 +36,21 @@ import { setupExportButtons } from "./export.js?v=20260520j";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const TIME_START = 1945;
+// 이벤트 라벨 폭 정밀 측정용 Canvas 2D 컨텍스트 (모듈 1회 생성).
+// 휴리스틱 추정 대신 measureText 로 실제 픽셀 폭을 얻어 레인 패킹 겹침을 0으로 만든다.
+// .event-label 폰트와 동일 문자열을 측정 직전 지정.
+const _mctx = document.createElement("canvas").getContext("2d");
+const EVENT_LABEL_FONT = '13px "Noto Sans KR", "Malgun Gothic", sans-serif';
+
+/**
+ * 이벤트 라벨 텍스트의 실제 렌더 폭(px). 폰트 로드 후(main의 document.fonts.ready) 호출해야 정확.
+ */
+function measureLabelWidth(text) {
+  _mctx.font = EVENT_LABEL_FONT;
+  return _mctx.measureText(String(text)).width;
+}
+
+const TIME_START = 1955;  // 프레임 시작. 이전(교육법 1949)은 좌측 경계로 클램프하고 축에 "◁ 1949" 표식.
 const TIME_END = 2026;
 const LEFT_LABEL_W = 300;
 const RIGHT_PAD = 100;
@@ -55,10 +69,18 @@ const SVG_WIDTH = 1900;
 
 // 트랙 레이아웃 상수
 const HEADER_ROW_H = 30;     // 카테고리 헤더 행 높이
-const LAW_ROW_H = 48;        // 법령 트랙 행 높이
+const LAW_ROW_H = 40;        // 법령 트랙 행 높이
 const GROUP_GAP = 28;        // 카테고리 그룹 사이 여백 (회전 라벨이 위 카테고리로 솟는 충돌 완화)
 const TOP_AXIS_H = 60;       // 상단 시간축 영역 높이
 const BAR_HEIGHT = 16;       // 트랙 막대 높이
+
+// 수평 이벤트 라벨 + 리더라인 레인 패킹 상수
+const LABEL_GAP = 6;         // 가로 박스 좌우 여유 (겹침 판정 마진)
+const LANE_H = 24;           // 레인 1단 피치. 실측 라벨 박스 높이 19px(13px 폰트 + line-box leading) + 분리 여백 5px. QA 게이트: 인접 레인 세로 침범 0.
+const LANE_TOP_PAD = 4;      // 트랙 위 reserved 영역 상단 추가 여백
+const LEADER_MIN = 4;        // 마커 ★ 정수리 ~ 최하단 라벨 사이 최소 리더 길이
+const STAR_TOP_OFFSET = 23;  // 마커 중심(cy) → ★ 정수리: 14px 띄움 + 외접 r9 = 23
+const LABEL_BASELINE_PAD = 3; // 레인 하단선 ~ 텍스트 baseline 보정
 
 // 카테고리 순서 (사용자 확정)
 const CATEGORY_ORDER = [
@@ -90,6 +112,8 @@ const RELATION_LABEL = {
  * 연도(소수 포함 가능) → SVG x 좌표
  */
 function yearToX(year, width) {
+  // 시간축 시작 이전 연도(교육법 1949 등)·소수 연도는 좌측 경계로 클램프
+  if (year < TIME_START) year = TIME_START;
   const usableW = width - LEFT_LABEL_W - RIGHT_PAD;
   return LEFT_LABEL_W + ((year - TIME_START) / (TIME_END - TIME_START)) * usableW;
 }
@@ -222,18 +246,125 @@ function starPoints(cx, cy, outerR) {
 }
 
 /* ============================================================
+ * 1.5 이벤트 라벨 레인 패킹 (수평 라벨 + 리더라인)
+ * ============================================================ */
+
+/**
+ * 이벤트가 귀속되는 트랙 키 산출. renderEvents 의 마커 배치 귀속과 동일 규칙:
+ *   - law_ids[0] 가 트랙으로 해결되면 그 법령 트랙 → key = law_ids[0]
+ *   - law_ids 비었거나 law_ids[0] 미해결 시 카테고리 orphan 행 → key = "orphan:<category>"
+ * @param {ev} ev
+ * @param {Set<string>} [lawIdSet]  존재하는 법령 트랙 id 집합. 주면 law_ids[0] 해결 여부 확인.
+ * @returns {string|null} 트랙 키. 카테고리 결손 등으로 귀속 불가 시 null.
+ */
+function eventTrackKey(ev, lawIdSet) {
+  if (!ev) return null;
+  if (Array.isArray(ev.law_ids) && ev.law_ids.length > 0) {
+    const first = ev.law_ids[0];
+    // lawIdSet 미제공이면 그대로 신뢰. 제공 시 미해결이면 orphan 으로 fallback(renderEvents 와 동일).
+    if (!lawIdSet || lawIdSet.has(first)) return first;
+  }
+  if (ev.category) return `orphan:${ev.category}`;
+  return null;
+}
+
+/**
+ * 트랙별 그리디 레인 패킹.
+ *
+ * short_label 있는 이벤트만 대상. 각 라벨의 가로 박스를 cx 중앙 정렬 기준으로
+ * [cx - w/2 - GAP, cx + w/2 + GAP] 로 잡고, 같은 트랙 안에서 가장 낮은(트랙에 가까운)
+ * 레인부터 가로로 겹치지 않는 첫 레인에 배치한다. 레인 인덱스는 0,1,2… 위로 적층.
+ *
+ * Y 좌표 불요 — cx·폭만으로 계산 가능하므로 buildTrackLayout 의 headroom 산정에
+ * 사전 주입할 수 있다.
+ *
+ * @returns {{
+ *   laneByEventIndex: Map<number, number>,   // 이벤트 원본 인덱스 → 레인 인덱스
+ *   laneCountByTrackKey: Map<string, number> // 트랙 키 → 레인 수(maxLane+1)
+ * }}
+ */
+function computeLabelLanes(events, width, lawIdSet) {
+  const laneByEventIndex = new Map();
+  const laneCountByTrackKey = new Map();
+
+  // 트랙 키별 라벨 박스 수집 (원본 인덱스 보존)
+  const byTrack = new Map(); // key → [{ idx, cx, w }]
+  events.forEach((ev, idx) => {
+    if (!ev || !ev.short_label) return;
+    const key = eventTrackKey(ev, lawIdSet);
+    if (!key) {
+      console.warn(`[app] event[${idx}] 라벨 트랙 귀속 실패, 라벨 스킵 title="${ev.title}"`);
+      return;
+    }
+    const dateStr = ev.date ? String(ev.date) : String(ev.year || "");
+    const cx = dateToX(dateStr, width);
+    const w = measureLabelWidth(ev.short_label);
+    if (!byTrack.has(key)) byTrack.set(key, []);
+    byTrack.get(key).push({ idx, cx, w });
+  });
+
+  for (const [key, boxes] of byTrack.entries()) {
+    boxes.sort((a, b) => a.cx - b.cx);
+    // lanes[i] = 해당 레인에 배치된 박스들의 [left, right] 배열
+    const lanes = [];
+    let maxLane = -1;
+    for (const box of boxes) {
+      const left = box.cx - box.w / 2 - LABEL_GAP;
+      const right = box.cx + box.w / 2 + LABEL_GAP;
+      let placed = -1;
+      for (let i = 0; i < lanes.length; i++) {
+        // 이 레인의 기존 박스들과 가로로 겹치지 않으면 배치
+        const conflict = lanes[i].some((b) => left < b.right && right > b.left);
+        if (!conflict) {
+          lanes[i].push({ left, right });
+          placed = i;
+          break;
+        }
+      }
+      if (placed === -1) {
+        lanes.push([{ left, right }]);
+        placed = lanes.length - 1;
+      }
+      laneByEventIndex.set(box.idx, placed);
+      if (placed > maxLane) maxLane = placed;
+    }
+    laneCountByTrackKey.set(key, maxLane + 1);
+  }
+
+  return { laneByEventIndex, laneCountByTrackKey };
+}
+
+/* ============================================================
  * 2. 트랙 레이아웃 (카테고리 그룹 → 제정연도순)
  * ============================================================ */
 
 /**
+ * @param {Array} laws
+ * @param {Array} events
+ * @param {{ labelsOn?: boolean, lanes?: { laneCountByTrackKey: Map<string, number> } }} [opts]
+ *   labelsOn=true 면 각 law/orphan 행 위에 그 행의 라벨 레인 수만큼 reserved 여유를 추가해
+ *   수평 라벨이 항상 자기 트랙 바로 위 영역에만 들어가게 한다. false(기본)면 컴팩트.
  * @returns {{
- *   rows: Array<{ kind: 'header'|'law', y: number, category?: string, law?: object }>,
+ *   rows: Array<{ kind: 'header'|'law'|'orphan', y: number, category?: string, law?: object }>,
  *   trackYByLawId: Map<string, number>,
  *   totalHeight: number,
- *   orphanRows: Array<{ category: string, y: number }>
+ *   orphanRows: Array<{ category: string, y: number }>,
+ *   eventCoordsByFile: Map<string, {x:number,y:number}>
  * }}
  */
-function buildTrackLayout(laws, events) {
+function buildTrackLayout(laws, events, opts = {}) {
+  const labelsOn = opts.labelsOn === true;
+  const laneCountByTrackKey =
+    (opts.lanes && opts.lanes.laneCountByTrackKey) || new Map();
+
+  // 라벨 ON 시 해당 트랙 키의 레인 수만큼 위쪽 reserved 여유(px) 산정.
+  function headroomFor(key) {
+    if (!labelsOn) return 0;
+    const lanes = laneCountByTrackKey.get(key) || 0;
+    if (lanes <= 0) return 0;
+    return lanes * LANE_H + LANE_TOP_PAD;
+  }
+
   const rows = [];
   let y = TOP_AXIS_H;
 
@@ -270,6 +401,8 @@ function buildTrackLayout(laws, events) {
       });
 
     for (const law of inCat) {
+      // 라벨 ON 시 이 트랙의 레인 수만큼 위쪽 여유 확보 후 행 배치
+      y += headroomFor(law.id);
       const yCenter = y + LAW_ROW_H / 2;
       rows.push({
         kind: "law",
@@ -284,6 +417,7 @@ function buildTrackLayout(laws, events) {
 
     // 미연결 이벤트가 있는 카테고리는 별도 행 추가 (작은 행)
     if (orphanCats.has(cat)) {
+      y += headroomFor(`orphan:${cat}`);
       const yCenter = y + LAW_ROW_H / 2;
       rows.push({
         kind: "orphan",
@@ -306,13 +440,51 @@ function buildTrackLayout(laws, events) {
 }
 
 /* ============================================================
+ * 2.5 행 교대 배경 (zebra) — SVG 최하단 레이어
+ * ============================================================ */
+
+/**
+ * 법령·orphan 행마다 옅은 교대 배경을 깐다.
+ * - 격자선·트랙 막대보다 아래(svg.firstChild 앞)에 삽입되어야 가림이 없음.
+ * - 카테고리 헤더 행에서 홀짝 카운터를 리셋(그룹 단위로 줄무늬 시작).
+ * - 헤더 행에는 zebra 미적용(헤더 자체 #F5F5F5 유지).
+ * - CSS 의존 없이 인라인 fill 속성만 사용.
+ */
+function renderZebra(svg, layout) {
+  const g = el("g", { class: "zebra-layer" });
+  let parity = 0; // 카테고리 그룹 내 행 홀짝 카운터
+  for (const row of layout.rows) {
+    if (row.kind === "header") {
+      parity = 0; // 그룹 진입 시 리셋
+      continue;
+    }
+    // law·orphan 행만 교대 배경 적용
+    const fill = parity % 2 === 0 ? "#FFFFFF" : "#F7F7F7";
+    const rect = el("rect", {
+      x: 0,
+      y: row.yTop,
+      width: SVG_WIDTH,
+      height: LAW_ROW_H,
+      fill,
+    });
+    g.appendChild(rect);
+    parity += 1;
+  }
+  // 최하단 레이어로 삽입 (격자·막대보다 아래)
+  svg.insertBefore(g, svg.firstChild);
+}
+
+/* ============================================================
  * 3. 시간축 (10년 grid + 5년 보조)
  * ============================================================ */
 
-function renderTimeAxis(svg, width, totalHeight) {
+function renderTimeAxis(svg, width, totalHeight, clampFromYear) {
   const g = el("g", { class: "time-axis" });
 
-  for (let year = TIME_START; year <= TIME_END; year += 5) {
+  // 눈금 격자는 5의 배수 그리드(1950·1955·1960…)에 고정. TIME_START가 5의 배수가 아니어도
+  // 10년 라벨(1960·1970…)이 정상 표기되도록 그리드 시작을 ceil(TIME_START/5)*5 로 둠.
+  const gridStart = Math.ceil(TIME_START / 5) * 5;
+  for (let year = gridStart; year <= TIME_END; year += 5) {
     const x = yearToX(year, width);
     const isDecade = year % 10 === 0;
     const line = el("line", {
@@ -321,16 +493,17 @@ function renderTimeAxis(svg, width, totalHeight) {
       y1: TOP_AXIS_H - 10,
       y2: totalHeight - 10,
       stroke: isDecade ? "#CCCCCC" : "#EEEEEE",
-      "stroke-width": isDecade ? 1 : 1,
+      "stroke-width": 1,
     });
     g.appendChild(line);
 
-    if (isDecade) {
+    // 10년 라벨 표기. 단 시작 라벨(TIME_START)과 너무 붙는 경우(<3년)는 생략해 겹침 방지.
+    if (isDecade && (year - TIME_START) >= 3) {
       const label = el("text", {
         x: x,
         y: TOP_AXIS_H - 16,
         "text-anchor": "middle",
-        "font-size": 15,
+        "font-size": 13,
         fill: "#555555",
       });
       label.textContent = String(year);
@@ -345,11 +518,47 @@ function renderTimeAxis(svg, width, totalHeight) {
       x: xEnd,
       y: TOP_AXIS_H - 16,
       "text-anchor": "middle",
-      "font-size": 15,
+      "font-size": 13,
       fill: "#555555",
     });
     endLabel.textContent = String(TIME_END);
     g.appendChild(endLabel);
+  }
+
+  // 좌측 시작점 라벨. 최초 모법이 프레임 시작(TIME_START)보다 이르면(clampFromYear),
+  // "◁ {연도}" 형태로 프레임 밖에서 이어짐을 표시한다(예: 교육법 1949 → "◁ 1949").
+  // ◁ 삼각형은 폰트 서브셋에 없는 글리프라 SVG polygon 으로 그려 폰트 비의존. 숫자는 텍스트.
+  // 클램프 대상이 없으면 시작 연도 숫자만(10년 격자에 안 잡히는 경우) 표기.
+  {
+    const xStart = yearToX(TIME_START, width);
+    const ly = TOP_AXIS_H - 16;
+    if (clampFromYear != null && clampFromYear < TIME_START) {
+      // 왼쪽을 가리키는 삼각형(◁) — 경계에서 좌측(프레임 밖)으로 이어짐을 표시
+      const tri = el("polygon", {
+        points: `${xStart},${ly - 4} ${xStart + 7},${ly - 8} ${xStart + 7},${ly}`,
+        fill: "#555555",
+      });
+      g.appendChild(tri);
+      const lab = el("text", {
+        x: xStart + 11,
+        y: ly,
+        "text-anchor": "start",
+        "font-size": 13,
+        fill: "#555555",
+      });
+      lab.textContent = String(clampFromYear);
+      g.appendChild(lab);
+    } else if (TIME_START % 10 !== 0) {
+      const startLabel = el("text", {
+        x: xStart + 3,
+        y: ly,
+        "text-anchor": "start",
+        "font-size": 13,
+        fill: "#555555",
+      });
+      startLabel.textContent = String(TIME_START);
+      g.appendChild(startLabel);
+    }
   }
 
   // 좌측 라벨 영역과 본문 사이 구분선
@@ -499,7 +708,6 @@ function renderTracks(svg, layout, width, ctx) {
       height: BAR_HEIGHT,
       rx: 4,
       fill: `var(--cat-${CATEGORY_KEY[law.category]})`,
-      opacity: 0.85,
       "data-law-id": law.id,
       "data-category": law.category,
       class: "track-bar",
@@ -619,13 +827,20 @@ function renderMilestones(svg, layout, width, ctx) {
  * 7. 정책 이벤트 마커 (★)
  * ============================================================ */
 
-function renderEvents(svg, events, layout, width, ctx) {
+/**
+ * @param {boolean} labelsOn  true 면 수평 라벨 + 리더라인을 함께 렌더(레이아웃에 여유 확보됨).
+ *                            false 면 마커 ★ 만 렌더(컴팩트).
+ * @param {Map<number, number>} laneByEventIndex  computeLabelLanes 결과(이벤트 idx → 레인)
+ */
+function renderEvents(svg, events, layout, width, ctx, labelsOn, laneByEventIndex) {
   const g = el("g", { class: "events-layer" });
-  // 라벨 별도 그룹: SVG data-event-labels 속성으로 CSS 가시성 토글.
-  // 내보내기(PNG/SVG) 시 export.js 가 클론에 data-event-labels="on" 강제.
+  // 라벨+리더 별도 그룹: events-layer 뒤(최상위)에 append.
   const labelG = el("g", { class: "event-labels" });
   const orphanYByCat = new Map();
   for (const o of layout.orphanRows) orphanYByCat.set(o.category, o.y);
+
+  // 수평 라벨 사양 수집 → 마커 루프 후 일괄 배치(리더라인 포함)
+  const labelSpecs = []; // { cx, cy, text, lane }
 
   events.forEach((ev, idx) => {
     if (!ev) return;
@@ -688,24 +903,93 @@ function renderEvents(svg, events, layout, width, ctx) {
 
     g.appendChild(star);
 
-    // 라벨: 마커 위 10px, -30° 회전 (위로 솟음 vs 가로 폭 트레이드오프 균형점)
-    if (ev.short_label) {
-      const lblX = cx;
-      const lblY = cy - 14 - 10;
-      const lbl = el("text", {
-        x: lblX,
-        y: lblY,
-        class: "event-label",
-        "text-anchor": "start",
-        transform: `rotate(-30 ${lblX} ${lblY})`,
-      });
-      lbl.textContent = ev.short_label;
-      labelG.appendChild(lbl);
+    // 라벨 사양 수집 (라벨 ON 일 때만 배치)
+    if (labelsOn && ev.short_label) {
+      const lane = laneByEventIndex ? laneByEventIndex.get(idx) : undefined;
+      if (lane === undefined) {
+        console.warn(`[app] event[${idx}] 레인 미산정, 라벨 스킵 title="${ev.title}"`);
+      } else {
+        // 마커 정수리(cy - STAR_TOP_OFFSET) 기준으로 라벨 배치
+        labelSpecs.push({ cx, cy, text: String(ev.short_label), lane });
+      }
     }
   });
 
+  // 라벨 ON 일 때만 수평 라벨 + 리더라인 렌더
+  if (labelsOn) {
+    placeEventLabels(labelG, labelSpecs);
+  }
+
   svg.appendChild(g);
   svg.appendChild(labelG);
+}
+
+/**
+ * 수평 이벤트 라벨 + 리더라인 렌더.
+ *
+ * 각 라벨은 computeLabelLanes 가 산정한 레인 인덱스에 따라 마커 ★ 정수리 위로 적층된다.
+ * 레인 인덱스가 클수록 트랙에서 멀어진다(위로 쌓임). 같은 레인 내 라벨은 가로로 겹치지
+ * 않음이 패킹 단계에서 보장되고, 레인 피치 LANE_H=24px 가 실측 라벨 박스 높이(19px)보다
+ * 5px 크므로 인접 레인끼리 세로로도 분리됨(QA 게이트: 교차쌍 0).
+ *
+ *   starTop      = cy - STAR_TOP_OFFSET           (마커 ★ 정수리)
+ *   labelBottomY = starTop - LEADER_MIN - lane*LANE_H  (해당 레인 라벨 박스 하단선)
+ *   baseline     = labelBottomY - LABEL_BASELINE_PAD   (text baseline)
+ *   리더라인     = (cx, starTop) → (cx, labelBottomY)  수직선, 라벨보다 먼저 append(아래 깔림)
+ *
+ * 캔버스 좌/우 경계를 넘는 라벨은 x 를 [8, SVG_WIDTH-8] 안으로 클램프하고 text-anchor 를
+ * start/end 로 전환(리더는 마커 cx 유지). 흰 halo(paint-order:stroke)로 막대·zebra 위 가독성 확보.
+ */
+function placeEventLabels(labelG, specs) {
+  if (!Array.isArray(specs) || specs.length === 0) return;
+
+  for (const sp of specs) {
+    const starTop = sp.cy - STAR_TOP_OFFSET;
+    const labelBottomY = starTop - LEADER_MIN - sp.lane * LANE_H;
+    const baselineY = labelBottomY - LABEL_BASELINE_PAD;
+
+    // 리더라인 (마커 정수리 → 라벨 박스 하단). 레인 0(마커 바로 위) 라벨은 토막선이
+    // 점처럼 보여 일관성을 해치므로 생략하고, 떨어뜨려 적층된 레인 1 이상 라벨에만
+    // 연결선을 그린다. 라벨보다 먼저 append → 아래 깔림.
+    if (sp.lane > 0) {
+      const leader = el("line", {
+        x1: sp.cx,
+        y1: starTop,
+        x2: sp.cx,
+        y2: labelBottomY,
+        stroke: "#9AA0A6",
+        "stroke-width": 1,
+        "pointer-events": "none",
+        class: "event-leader",
+      });
+      labelG.appendChild(leader);
+    }
+
+    // 경계 클램프: 중앙 정렬 기준 라벨 박스가 좌/우 여백을 넘으면 x·anchor 조정
+    const w = measureLabelWidth(sp.text);
+    let labelX = sp.cx;
+    let anchor = "middle";
+    const halfW = w / 2;
+    const MARGIN = 8;
+    if (sp.cx - halfW < MARGIN) {
+      labelX = MARGIN;
+      anchor = "start";
+    } else if (sp.cx + halfW > SVG_WIDTH - MARGIN) {
+      labelX = SVG_WIDTH - MARGIN;
+      anchor = "end";
+    }
+
+    const lbl = el("text", {
+      x: labelX,
+      y: baselineY,
+      class: "event-label",
+      "text-anchor": anchor,
+      // 흰 halo — 막대·zebra·격자 위에서 텍스트 분리. paint-order:stroke 로 외곽선 먼저 그림.
+      style: "paint-order:stroke;stroke:#FFFFFF;stroke-width:3;stroke-linejoin:round",
+    });
+    lbl.textContent = sp.text;
+    labelG.appendChild(lbl);
+  }
 }
 
 /* ============================================================
@@ -806,10 +1090,32 @@ function computeEdgeXEndpoints(rel, fromLaw, toLaw, width) {
  * 호출부: renderEdges 내부. 결과 (xEnd, yEnd)는 베지어 끝점과 endMarker circle 양쪽에 쓰임.
  */
 const MILESTONE_ENACTED_R = 8;
-function computeArrowEndPoint(xTo, yTo, dxSign) {
+/**
+ * @param {number} xTo  to 마디 중심 x
+ * @param {number} yTo  to 마디 중심 y
+ * @param {number} dxSign  좌→우 진입 +1 / 우→좌 -1
+ * @param {number} [k=0]  같은 (to|dxSign) 그룹 내 순번 (0-based)
+ * @param {number} [n=1]  그룹 총 개수
+ *
+ * n<=1이면 단일 화살표 → 기존 60° 진입 유지.
+ * n>1이면 화살촉을 부채꼴로 분산해 수렴 마디(예: 1997)에서 화살촉 겹침 해소.
+ */
+function computeArrowEndPoint(xTo, yTo, dxSign, k = 0, n = 1) {
   // === USER FILL START ===
   const r = MILESTONE_ENACTED_R;
-  const alpha = Math.PI / 3; // 60° — 2시(좌→우) / 10시(우→좌) 방향
+  let alpha;
+  if (n <= 1) {
+    alpha = Math.PI / 3; // 60° — 2시(좌→우) / 10시(우→좌) 방향
+  } else {
+    const center = (Math.PI * 2) / 9; // 40°
+    const step = Math.min((Math.PI * 13) / 180, (Math.PI * 60) / 180 / (n - 1)); // 13° 또는 균등 분할
+    alpha = center + (k - (n - 1) / 2) * step;
+    // [10°, 70°] 클램프
+    const lo = Math.PI / 18;       // 10°
+    const hi = (Math.PI * 7) / 18; // 70°
+    if (alpha < lo) alpha = lo;
+    if (alpha > hi) alpha = hi;
+  }
   const sinA = Math.sin(alpha);
   const cosA = Math.cos(alpha);
   const xEnd = xTo + dxSign * r * sinA;
@@ -861,6 +1167,33 @@ function ensureEdgeDefs(svg) {
 function renderEdges(svg, relations, layout, width, ctx) {
   ensureEdgeDefs(svg);
   const g = el("g", { class: "edges-layer" });
+
+  // 사전 패스: 동일 to 마디에 같은 방향(dxSign)으로 진입하는 방향성(law→law) 엣지를
+  // 그룹화해 각 엣지의 그룹 내 순번 k와 그룹 총개수 n을 산출.
+  // 화살촉 진입각을 부채꼴로 분산(computeArrowEndPoint)해 수렴 마디(예: 1997) 겹침 해소.
+  // 키: `${rel.to}|${dxSign}`. dxSign 계산은 메인 루프 로직(computeEdgeXEndpoints) 재사용.
+  const fanGroups = new Map(); // key → [idx, ...]
+  relations.forEach((rel, idx) => {
+    if (!rel) return;
+    const fromKind = rel.from_kind || "law";
+    const toKind = rel.to_kind || "law";
+    const directional = rel.type === "succession" || rel.type === "basis" || rel.type === "branch";
+    if (!directional || fromKind !== "law" || toKind !== "law") return;
+    const fromLaw = ctx.lawsById.get(rel.from);
+    const toLaw = ctx.lawsById.get(rel.to);
+    const ep = computeEdgeXEndpoints(rel, fromLaw, toLaw, width);
+    if (ep.xFrom === undefined || ep.xTo === undefined) return;
+    const dxSign = (ep.xTo - ep.xFrom) >= 0 ? 1 : -1;
+    const key = `${rel.to}|${dxSign}`;
+    if (!fanGroups.has(key)) fanGroups.set(key, []);
+    fanGroups.get(key).push(idx);
+  });
+  // 엣지 idx → { k, n } 조회표
+  const fanByIdx = new Map();
+  for (const arr of fanGroups.values()) {
+    const n = arr.length;
+    arr.forEach((edgeIdx, k) => fanByIdx.set(edgeIdx, { k, n }));
+  }
 
   relations.forEach((rel, idx) => {
     if (!rel) return;
@@ -921,7 +1254,8 @@ function renderEdges(svg, relations, layout, width, ctx) {
     let ny = 0;
     // 끝점 진입 로직은 to가 law(마디 ●)일 때만 — event(★) 끝점은 별 중심 그대로 사용
     if (directional && toKind === "law") {
-      const ep = computeArrowEndPoint(xTo, yTo, dxSign);
+      const fan = fanByIdx.get(idx) || { k: 0, n: 1 };
+      const ep = computeArrowEndPoint(xTo, yTo, dxSign, fan.k, fan.n);
       xEnd = ep.xEnd;
       yEnd = ep.yEnd;
       nx = ep.nx;
@@ -982,6 +1316,26 @@ function renderEdges(svg, relations, layout, width, ctx) {
       class: "edge-hit",
     });
 
+    // 흰 halo path — 시각 선 바로 아래(문서순서상 먼저 append) 동일 d 실선으로 깔아
+    // 동색 막대·짙은 마디 위 통과 시 선이 묻히는 현상 해소.
+    // marker-end 절대 미지정(흰 화살촉 중복 방지), dasharray 미지정(실선),
+    // halo width = 유형별 색선폭 + 1.6 (succession/basis 3.4, branch 4.0, reference 3.4).
+    const HALO_WIDTH = {
+      succession: 3.4,
+      basis: 3.4,
+      branch: 4.0,
+      reference: 3.4,
+    };
+    const haloPath = el("path", {
+      d,
+      class: "edge-halo",
+      fill: "none",
+      stroke: "#FFFFFF",
+      "stroke-width": HALO_WIDTH[rel.type] || 3.4,
+      "stroke-linejoin": "round",
+      "pointer-events": "none",
+    });
+
     // 시각용 점선 path — type별 화살표 마커 (reference 제외)
     const lineAttrs = { d, class: "edge-line" };
     if (rel.type !== "reference") {
@@ -1011,6 +1365,7 @@ function renderEdges(svg, relations, layout, width, ctx) {
     title.textContent = `${RELATION_LABEL[rel.type] || rel.type} (${rel.year}) ${fromLaw ? fromLaw.name_kr : stripMd(rel.from)} → ${toLaw ? toLaw.name_kr : stripMd(rel.to)}`;
     group.appendChild(title);
     group.appendChild(hitPath);
+    group.appendChild(haloPath);
     group.appendChild(linePath);
     group.appendChild(startMarker);
     group.appendChild(endMarker);
@@ -1305,60 +1660,65 @@ function openEdgePanel(rel, ctx) {
  * 11. 필터 (카테고리·관계 유형)
  * ============================================================ */
 
-function setupFilters(svg, layout, ctx) {
+// 필터 상태(모듈 변수). 체크박스에서 파생되며, 재렌더가 필터를 깨지 않도록
+// render() 끝에서 새 노드에 applyFilters 로 재적용한다.
+const filterState = {
+  activeCategories: new Set(CATEGORY_ORDER),
+  activeRelations: new Set(["succession", "basis", "reference", "branch"]),
+};
+
+/**
+ * 현재 filterState 를 svg 의 현재 노드 집합에 적용(show/hide).
+ * 매 render() 끝에서도 호출되어 새로 생성된 노드에 필터가 반영되게 한다.
+ */
+function applyFilters(svg, ctx) {
+  // 트랙·마디·이벤트 마커: 카테고리 기준
+  const allCatNodes = svg.querySelectorAll("[data-category]");
+  allCatNodes.forEach((node) => {
+    const cat = node.getAttribute("data-category");
+    node.style.display = filterState.activeCategories.has(cat) ? "" : "none";
+  });
+
+  // 엣지: 관계 유형 + from·to 양쪽 카테고리 모두 활성일 때만 표시
+  const edges = svg.querySelectorAll(".edge");
+  edges.forEach((edge) => {
+    const type = edge.getAttribute("data-relation-type");
+    const fromId = edge.getAttribute("data-from");
+    const toId = edge.getAttribute("data-to");
+    const fromLaw = ctx.lawsById.get(fromId);
+    const toLaw = ctx.lawsById.get(toId);
+    const typeOk = filterState.activeRelations.has(type);
+    const catOk = fromLaw && toLaw
+      && filterState.activeCategories.has(fromLaw.category)
+      && filterState.activeCategories.has(toLaw.category);
+    edge.style.display = (typeOk && catOk) ? "" : "none";
+  });
+}
+
+/**
+ * 체크박스 change 바인딩(main 에서 1회). 토글 시 filterState 갱신 후 applyFilters.
+ * 재렌더와 독립 — svg 노드는 매번 교체되므로 바인딩 시점의 svg 참조가 아니라
+ * 호출 시점의 현재 svg(getSvg())·ctx 를 사용한다.
+ */
+function bindFilterControls(getSvg, ctx) {
   const catBoxes = document.querySelectorAll(".filter-category");
   const relBoxes = document.querySelectorAll(".filter-relation");
-
-  const state = {
-    activeCategories: new Set(CATEGORY_ORDER),
-    activeRelations: new Set(["succession", "basis", "reference", "branch"]),
-  };
-
-  function applyFilters() {
-    // 트랙·마디·이벤트 마커: 카테고리 기준
-    const allCatNodes = svg.querySelectorAll("[data-category]");
-    allCatNodes.forEach((node) => {
-      const cat = node.getAttribute("data-category");
-      if (state.activeCategories.has(cat)) {
-        node.style.display = "";
-      } else {
-        node.style.display = "none";
-      }
-    });
-
-    // 좌측 법령 라벨은 data-law-id 만 있는 경우(라벨 텍스트 자체에 data-category 있음)이미 위에서 처리됨
-
-    // 엣지: 관계 유형 + from·to 양쪽 카테고리 모두 활성일 때만 표시
-    const edges = svg.querySelectorAll(".edge");
-    edges.forEach((edge) => {
-      const type = edge.getAttribute("data-relation-type");
-      const fromId = edge.getAttribute("data-from");
-      const toId = edge.getAttribute("data-to");
-      const fromLaw = ctx.lawsById.get(fromId);
-      const toLaw = ctx.lawsById.get(toId);
-      const typeOk = state.activeRelations.has(type);
-      const catOk = fromLaw && toLaw
-        && state.activeCategories.has(fromLaw.category)
-        && state.activeCategories.has(toLaw.category);
-      edge.style.display = (typeOk && catOk) ? "" : "none";
-    });
-  }
 
   catBoxes.forEach((box) => {
     box.addEventListener("change", () => {
       const cat = box.getAttribute("data-category");
-      if (box.checked) state.activeCategories.add(cat);
-      else state.activeCategories.delete(cat);
-      applyFilters();
+      if (box.checked) filterState.activeCategories.add(cat);
+      else filterState.activeCategories.delete(cat);
+      applyFilters(getSvg(), ctx);
     });
   });
 
   relBoxes.forEach((box) => {
     box.addEventListener("change", () => {
       const type = box.getAttribute("data-relation");
-      if (box.checked) state.activeRelations.add(type);
-      else state.activeRelations.delete(type);
-      applyFilters();
+      if (box.checked) filterState.activeRelations.add(type);
+      else filterState.activeRelations.delete(type);
+      applyFilters(getSvg(), ctx);
     });
   });
 }
@@ -1367,11 +1727,21 @@ function setupFilters(svg, layout, ctx) {
  * 12. 메인 부트스트랩
  * ============================================================ */
 
+// 라벨 ON/OFF 현재 상태(모듈 변수) — 토글·export restore 가 참조.
+let currentLabelsOn = false;
+
 async function main() {
   const svg = document.getElementById("timeline-svg");
   if (!svg) {
     console.error("[app] #timeline-svg 요소 없음");
     return;
+  }
+
+  // 폰트 로드 완료 후 측정·렌더해야 measureText 폭이 정확. (라벨 레인 패킹 정밀도 직결)
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (_) { /* 폰트 API 미지원 환경에서도 진행 */ }
   }
 
   // 공개용(_deploy) 모드 감지: <body data-mode="deploy"> 면 _deploy 데이터 로드
@@ -1397,35 +1767,80 @@ async function main() {
     relationIndex: indexRelations(relations),
   };
 
-  // 트랙 레이아웃 계산
-  const layout = buildTrackLayout(laws, events);
+  // 라벨 레인 패킹은 Y 좌표 불요(cx·폭만 사용) → 1회 산정해 레이아웃·렌더 양쪽에 주입.
+  // lawsById 키를 넘겨 law_ids[0] 미해결 시 orphan 키로 fallback(renderEvents 와 귀속 일치).
+  const lanes = computeLabelLanes(events, SVG_WIDTH, ctx.lawsById);
 
-  // SVG 캔버스 크기 설정
-  svg.setAttribute("width", String(SVG_WIDTH));
-  svg.setAttribute("height", String(layout.totalHeight));
-  svg.setAttribute("viewBox", `0 0 ${SVG_WIDTH} ${layout.totalHeight}`);
-  // 이벤트 라벨 토글 디폴트 OFF (탐색 시 깔끔). 내보내기 시 export.js 가 강제 ON.
-  svg.setAttribute("data-event-labels", "off");
+  /**
+   * 전체 렌더 파이프라인. labelsOn 에 따라 레이아웃 여유·라벨/리더 생성 여부가 달라진다.
+   * svg 자식 전부 제거 → 레이아웃 재계산 → 모든 레이어 재생성 → 현재 필터 재적용.
+   * 토글·export 캡처가 동일 경로로 일관되게 동작.
+   */
+  function render(labelsOn) {
+    currentLabelsOn = labelsOn;
 
-  // 기존 자식 제거 (재호출 안전)
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const layout = buildTrackLayout(laws, events, { labelsOn, lanes });
 
-  // 렌더 순서: 시간축 → 좌측 라벨 → 트랙 → 마디 → 이벤트 → 엣지 (최상위)
-  // 엣지를 마지막에 그려 화살표가 마디 도형(●▲◆)·이벤트 마커(★)에 가려지지 않도록 함.
-  // back-off 처리로 끝점이 마디 직전에서 멈추므로 마디 도형 자체는 가독성 유지.
-  renderTimeAxis(svg, SVG_WIDTH, layout.totalHeight);
-  renderLeftLabels(svg, layout);
-  renderTracks(svg, layout, SVG_WIDTH, ctx);
-  renderMilestones(svg, layout, SVG_WIDTH, ctx);
-  renderEvents(svg, events, layout, SVG_WIDTH, ctx);
-  renderEdges(svg, relations, layout, SVG_WIDTH, ctx);
+    // SVG 캔버스 크기 갱신 (라벨 ON 시 totalHeight 증가)
+    svg.setAttribute("width", String(SVG_WIDTH));
+    svg.setAttribute("height", String(layout.totalHeight));
+    svg.setAttribute("viewBox", `0 0 ${SVG_WIDTH} ${layout.totalHeight}`);
+    // data-event-labels 속성은 상태 표식용으로 동기화(CSS display 의존 아님 — 라벨은 OFF면 미생성)
+    svg.setAttribute("data-event-labels", labelsOn ? "on" : "off");
 
-  // 필터 셋업
-  setupFilters(svg, layout, ctx);
+    // 기존 자식 제거 (재렌더 안전)
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  // 내보내기 버튼(헤더의 #export-svg / #export-png) 핸들러 바인딩.
-  // 렌더 완료 후 호출해야 width/height·자식 트리가 확정된 상태에서 캡처됨.
-  setupExportButtons(svg, { dpi: 300 });
+    // 렌더 순서: zebra(최하단) → 시간축 → 좌측 라벨 → 트랙 → 마디 → 이벤트(+라벨/리더) → 엣지 (최상위)
+    renderZebra(svg, layout);
+    const minEnacted = Math.min(...laws.map((l) => l.enacted_year).filter((y) => typeof y === "number"));
+    const clampFromYear = Number.isFinite(minEnacted) && minEnacted < TIME_START ? minEnacted : null;
+    renderTimeAxis(svg, SVG_WIDTH, layout.totalHeight, clampFromYear);
+    renderLeftLabels(svg, layout);
+    renderTracks(svg, layout, SVG_WIDTH, ctx);
+    renderMilestones(svg, layout, SVG_WIDTH, ctx);
+    renderEvents(svg, events, layout, SVG_WIDTH, ctx, labelsOn, lanes.laneByEventIndex);
+    renderEdges(svg, relations, layout, SVG_WIDTH, ctx);
+
+    // 새 노드에 현재 필터 상태 재적용 (재렌더가 필터를 깨지 않게)
+    applyFilters(svg, ctx);
+
+    console.info(
+      `[app] 렌더 완료(labels=${labelsOn ? "on" : "off"}): laws ${laws.length}, ` +
+      `relations ${relations.length}, events ${events.length}, ` +
+      `tracks ${layout.trackYByLawId.size}, orphanRows ${layout.orphanRows.length}, ` +
+      `canvas ${SVG_WIDTH}x${layout.totalHeight}`
+    );
+  }
+
+  // 필터 체크박스 바인딩(1회) — 현재 svg·ctx 를 호출 시점에 참조.
+  bindFilterControls(() => svg, ctx);
+
+  // 이벤트명 라벨 토글 버튼 — 클릭 시 ON/OFF 뒤집어 재렌더 + aria-pressed 동기화.
+  const labelBtn = document.getElementById("toggle-event-labels");
+  if (labelBtn) {
+    labelBtn.addEventListener("click", () => {
+      const next = !currentLabelsOn;
+      render(next);
+      labelBtn.setAttribute("aria-pressed", String(next));
+    });
+  }
+
+  // 내보내기 버튼 핸들러 바인딩. export 는 반드시 ON 레이아웃을 캡처해야 하므로
+  // prepare 에서 ON 으로 재렌더(캡처 직전), restore 에서 캡처 전 상태로 복원.
+  // prepare 가 currentLabelsOn 을 덮어쓰므로 진입 시점 상태를 별도 변수에 보관.
+  let preExportLabelsOn = false;
+  setupExportButtons(svg, {
+    dpi: 300,
+    prepare: () => {
+      preExportLabelsOn = currentLabelsOn;
+      render(true);
+    },
+    restore: () => {
+      render(preExportLabelsOn);
+      if (labelBtn) labelBtn.setAttribute("aria-pressed", String(preExportLabelsOn));
+    },
+  });
 
   // 사이드 패널 닫기 (버튼 + ESC)
   ensurePanel();
@@ -1439,11 +1854,9 @@ async function main() {
     }
   });
 
-  console.info(
-    `[app] 렌더 완료: laws ${laws.length}, relations ${relations.length}, events ${events.length}, ` +
-    `tracks ${layout.trackYByLawId.size}, orphanRows ${layout.orphanRows.length}, ` +
-    `canvas ${SVG_WIDTH}x${layout.totalHeight}`
-  );
+  // 초기 렌더: 라벨 OFF(컴팩트). 버튼 aria-pressed 도 동기화.
+  render(false);
+  if (labelBtn) labelBtn.setAttribute("aria-pressed", "false");
 }
 
 main();
